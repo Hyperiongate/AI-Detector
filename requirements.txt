@@ -1,14 +1,6 @@
-# Core Dependencies
 Flask==2.3.3
 flask-cors==4.0.0
-requests==2.31.0 
+requests==2.31.0
 beautifulsoup4==4.12.2
 python-dotenv==1.0.0
 gunicorn==21.2.0
-
-# Image Analysis
-Pillow==10.0.1
-
-# Pin important dependencies
-Werkzeug==2.3.7
-MarkupSafe==2.1.3
