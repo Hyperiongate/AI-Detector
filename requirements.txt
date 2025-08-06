@@ -6,11 +6,8 @@ beautifulsoup4==4.12.2
 python-dotenv==1.0.0
 gunicorn==21.2.0
 
-# Web Scraping
-lxml==4.9.3
-
 # Text Analysis
 numpy==1.26.2
 
-# Image Analysis (optional - minimal)
+# Image Analysis (using Pillow without dependencies)
 Pillow==10.1.0
