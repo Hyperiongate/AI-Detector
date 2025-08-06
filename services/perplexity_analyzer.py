@@ -6,7 +6,6 @@ import math
 import logging
 from typing import Dict, Any, List
 from collections import Counter
-import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -141,6 +140,14 @@ class PerplexityAnalyzer:
         # Normalize to 0-1 scale
         return min(1, burstiness)
     
+    def _calculate_variance(self, values: List[float]) -> float:
+        """Calculate variance without numpy"""
+        if not values:
+            return 0
+        mean = sum(values) / len(values)
+        variance = sum((x - mean) ** 2 for x in values) / len(values)
+        return variance
+    
     def _calculate_sentence_variance(self, sentences: List[str]) -> float:
         """Calculate variance in sentence structures"""
         if len(sentences) < 2:
@@ -153,7 +160,7 @@ class PerplexityAnalyzer:
         
         # Analyze sentence lengths
         lengths = [len(s.split()) for s in sentences]
-        length_variance = np.var(lengths) if lengths else 0
+        length_variance = self._calculate_variance(lengths) if lengths else 0
         
         # Combined score
         return (starter_diversity * 50) + min(50, length_variance / 2)
