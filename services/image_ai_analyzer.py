@@ -5,7 +5,7 @@ Detects AI-generated images through various analysis methods
 import os
 import logging
 import base64
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, TYPE_CHECKING
 from io import BytesIO
 import json
 
@@ -16,10 +16,17 @@ try:
     PIL_AVAILABLE = True
 except ImportError:
     PIL_AVAILABLE = False
-    logger = logging.getLogger(__name__)
-    logger.warning("PIL/Pillow not available. Image analysis will be limited.")
+    Image = None
+    np = None
+
+# Use TYPE_CHECKING for type hints that might not be available at runtime
+if TYPE_CHECKING:
+    from PIL import Image as PILImage
 
 logger = logging.getLogger(__name__)
+
+if not PIL_AVAILABLE:
+    logger.warning("PIL/Pillow not available. Image analysis will be limited.")
 
 class ImageAIAnalyzer:
     """Analyzes images for AI generation artifacts"""
@@ -244,8 +251,11 @@ class ImageAIAnalyzer:
             logger.error(f"Artifact detection error: {str(e)}", exc_info=True)
             return {'ai_score': 50, 'error': str(e)}
     
-    def _decode_image(self, image_data: str) -> Optional[Image.Image]:
+    def _decode_image(self, image_data: str) -> Optional[Any]:
         """Decode base64 image data"""
+        if not self.pil_available or not Image:
+            return None
+            
         try:
             image_bytes = base64.b64decode(image_data)
             image = Image.open(BytesIO(image_bytes))
@@ -254,7 +264,7 @@ class ImageAIAnalyzer:
             logger.error(f"Image decode error: {e}")
             return None
     
-    def _analyze_metadata(self, image: Image.Image) -> Dict[str, Any]:
+    def _analyze_metadata(self, image: Any) -> Dict[str, Any]:
         """Analyze image metadata for AI signatures"""
         metadata = {}
         ai_indicators = 0
@@ -279,8 +289,11 @@ class ImageAIAnalyzer:
             'suspicious_metadata': ai_indicators > 0
         }
     
-    def _analyze_pixels(self, image: Image.Image) -> Dict[str, Any]:
+    def _analyze_pixels(self, image: Any) -> Dict[str, Any]:
         """Analyze pixel-level characteristics"""
+        if not self.pil_available or not ImageStat:
+            return {}
+            
         try:
             # Convert to RGB if necessary
             if image.mode != 'RGB':
@@ -313,12 +326,12 @@ class ImageAIAnalyzer:
             logger.error(f"Pixel analysis error: {e}")
             return {}
     
-    def _analyze_frequency_domain(self, image: Image.Image) -> Dict[str, Any]:
+    def _analyze_frequency_domain(self, image: Any) -> Dict[str, Any]:
         """Analyze frequency domain characteristics"""
-        try:
-            if not np:
-                return {}
+        if not self.pil_available or not np:
+            return {}
             
+        try:
             # Convert to grayscale
             gray = image.convert('L')
             img_array = np.array(gray)
@@ -347,7 +360,7 @@ class ImageAIAnalyzer:
             logger.error(f"Frequency analysis error: {e}")
             return {}
     
-    def _detect_ai_artifacts(self, image: Image.Image) -> Dict[str, Any]:
+    def _detect_ai_artifacts(self, image: Any) -> Dict[str, Any]:
         """Detect specific AI generation artifacts"""
         artifacts = []
         
@@ -440,9 +453,18 @@ class ImageAIAnalyzer:
         else:
             return "This image appears to be authentic with minimal signs of AI generation."
     
+    def _detect_model(self, metadata: Dict, artifacts: Dict) -> str:
+        """Detect which AI model might have generated the image"""
+        if metadata.get('ai_indicators', 0) > 0:
+            return 'AI Model Detected'
+        return 'Unknown'
+    
     # Helper methods for various checks
-    def _check_symmetry(self, image: Image.Image) -> float:
+    def _check_symmetry(self, image: Any) -> float:
         """Check image symmetry"""
+        if not self.pil_available or not np:
+            return 0
+            
         try:
             width, height = image.size
             img_array = np.array(image)
@@ -460,8 +482,11 @@ class ImageAIAnalyzer:
         except:
             return 0
     
-    def _check_smoothness(self, image: Image.Image) -> float:
+    def _check_smoothness(self, image: Any) -> float:
         """Check for unrealistic smoothness"""
+        if not self.pil_available or not np:
+            return 0.5
+            
         try:
             img_array = np.array(image.convert('L'))
             
@@ -484,61 +509,61 @@ class ImageAIAnalyzer:
         except:
             return 0.5
     
-    def _check_repetitive_patterns(self, image: Image.Image) -> float:
+    def _check_repetitive_patterns(self, image: Any) -> float:
         """Check for repetitive patterns"""
         # Simplified check - in reality would use more sophisticated methods
         return 0.3  # Placeholder
     
-    def _check_edge_artifacts(self, image: Image.Image) -> bool:
+    def _check_edge_artifacts(self, image: Any) -> bool:
         """Check for AI edge artifacts"""
         # Simplified check
         return False  # Placeholder
     
-    def _check_gradient_perfection(self, image: Image.Image) -> float:
+    def _check_gradient_perfection(self, image: Any) -> float:
         """Check for perfect gradients"""
         # Simplified check
         return 0.5  # Placeholder
     
-    def _has_grid_pattern(self, image: Image.Image) -> bool:
+    def _has_grid_pattern(self, image: Any) -> bool:
         """Check for grid patterns"""
         # Simplified check
         return False  # Placeholder
     
-    def _has_unnatural_edges(self, image: Image.Image) -> bool:
+    def _has_unnatural_edges(self, image: Any) -> bool:
         """Check for unnatural edges"""
         # Simplified check
         return False  # Placeholder
     
-    def _has_texture_anomalies(self, image: Image.Image) -> bool:
+    def _has_texture_anomalies(self, image: Any) -> bool:
         """Check for texture anomalies"""
         # Simplified check
         return False  # Placeholder
     
-    def _check_model_patterns(self, image: Image.Image, patterns: List[str]) -> float:
+    def _check_model_patterns(self, image: Any, patterns: List[str]) -> float:
         """Check for model-specific patterns"""
         # Simplified check - returns a score based on pattern matching
         return 20  # Placeholder
     
-    def _error_level_analysis(self, image: Image.Image) -> Dict[str, Any]:
+    def _error_level_analysis(self, image: Any) -> Dict[str, Any]:
         """Perform error level analysis"""
         # Simplified ELA
         return {
             'anomalies': ['Compression inconsistency detected']
         }
     
-    def _analyze_compression_artifacts(self, image: Image.Image) -> Dict[str, Any]:
+    def _analyze_compression_artifacts(self, image: Any) -> Dict[str, Any]:
         """Analyze compression artifacts"""
         return {
             'ai_artifacts': ['Uniform compression blocks']
         }
     
-    def _analyze_color_distribution(self, image: Image.Image) -> Dict[str, Any]:
+    def _analyze_color_distribution(self, image: Any) -> Dict[str, Any]:
         """Analyze color distribution"""
         return {
             'anomalies': ['Unusual color histogram']
         }
     
-    def _analyze_edge_coherence(self, image: Image.Image) -> Dict[str, Any]:
+    def _analyze_edge_coherence(self, image: Any) -> Dict[str, Any]:
         """Analyze edge coherence"""
         return {
             'inconsistencies': ['Edge discontinuities']
