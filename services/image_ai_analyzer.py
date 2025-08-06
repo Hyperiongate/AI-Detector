@@ -1265,8 +1265,27 @@ class ImageAIAnalyzer:
         
         return 'Not Detected'
     
-    # Additional helper methods remain the same...
-    # [All the helper methods from the original file continue unchanged]
+    def _basic_analysis(self, image_data: str) -> Dict[str, Any]:
+        """Basic analysis when PIL is not available"""
+        # Simple heuristic based on image data size and patterns
+        data_size = len(image_data)
+        
+        # Check for common AI image data patterns
+        ai_probability = 50
+        
+        # Very large images might be AI (high resolution)
+        if data_size > 1000000:  # > 1MB base64
+            ai_probability += 10
+        
+        # Check for repetitive base64 patterns (simplified)
+        if image_data[:1000].count(image_data[100:110]) > 5:
+            ai_probability += 20
+        
+        return {
+            'ai_probability': ai_probability,
+            'note': 'Limited analysis available. Install Pillow for full image analysis.',
+            'data_size': data_size
+        }
     
     def _check_color_banding(self, image: Any) -> float:
         """Check for color banding artifacts"""
@@ -1571,29 +1590,3 @@ class ImageAIAnalyzer:
             return False
             
         except Exception as e:
-            logger.error(f"SD noise check error: {e}")
-            return False
-    
-    def _check_lighting_consistency(self, image: Any) -> bool:
-        """Check if lighting is unnaturally consistent"""
-        try:
-            if image.mode != 'RGB':
-                image = image.convert('RGB')
-            
-            # Convert to LAB color space (approximation)
-            # This is simplified - real LAB conversion is more complex
-            img_array = np.array(image)
-            
-            # Simple luminance calculation
-            luminance = 0.299 * img_array[:,:,0] + 0.587 * img_array[:,:,1] + 0.114 * img_array[:,:,2]
-            
-            # Divide image into regions and check lighting consistency
-            h, w = luminance.shape
-            region_size = min(h, w) // 4
-            
-            region_means = []
-            
-            for i in range(0, h - region_size, region_size):
-                for j in range(0, w - region_size, region_size):
-                    region = luminance[i:i+region_size, j:j+region_size]
-                    region_means.
