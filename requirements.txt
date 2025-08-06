@@ -4,3 +4,6 @@ requests==2.31.0
 beautifulsoup4==4.12.2
 python-dotenv==1.0.0
 gunicorn==21.2.0
+Pillow (for image analysis)
+- numpy (for image processing)
+- nltk or textstat (referenced but not implemented)
