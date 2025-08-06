@@ -1,9 +1,34 @@
+# Core Flask dependencies
 Flask==2.3.3
 flask-cors==4.0.0
+gunicorn==21.2.0
+
+# Web scraping and requests
 requests==2.31.0
 beautifulsoup4==4.12.2
+lxml==4.9.3
+
+# Environment and configuration
 python-dotenv==1.0.0
-gunicorn==21.2.0
-Pillow (for image analysis)
-- numpy (for image processing)
-- nltk or textstat (referenced but not implemented)
+
+# Image processing
+Pillow==10.0.1
+numpy==1.24.3
+
+# Text analysis
+nltk==3.8.1
+textstat==0.7.3
+
+# Optional but recommended for better performance
+redis==4.6.0
+celery==5.3.1
+
+# For PDF generation (referenced in your code)
+reportlab==4.0.4
+PyPDF2==3.0.1
+
+# For better date handling
+python-dateutil==2.8.2
+
+# Security
+cryptography==41.0.4
