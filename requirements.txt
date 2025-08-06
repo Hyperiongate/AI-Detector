@@ -1,13 +1,16 @@
 # Core Dependencies
-Flask==3.0.0
+Flask==2.3.3
 flask-cors==4.0.0
 requests==2.31.0
 beautifulsoup4==4.12.2
 python-dotenv==1.0.0
 gunicorn==21.2.0
 
-# Text Analysis
-numpy==1.26.2
+# Text Analysis - using pure Python alternatives
+# Remove numpy - it's not actually used in the current code
 
-# Image Analysis (using Pillow without dependencies)
-Pillow==10.1.0
+# Image Analysis - Pillow with pre-built wheels
+Pillow==10.0.1
+
+# Additional optimization
+Werkzeug==2.3.7  # Pin Flask's dependency for faster resolution
