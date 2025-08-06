@@ -1,5 +1,6 @@
-# Copy from your news app
-bind = "0.0.0.0:5000"
-workers = 4
-threads = 2
+import os
+
+bind = f"0.0.0.0:{os.environ.get('PORT', '10000')}"
+workers = 2
+threads = 4
 timeout = 120
