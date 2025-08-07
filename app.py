@@ -1,492 +1,294 @@
 """
-AI Detector Service
-Main orchestrator for AI detection analysis
+AI Detection Analyzer API
+Detects AI participation in text and image creation
 """
 import os
 import logging
-from typing import Dict, Any, Optional, List
-import requests
+from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask_cors import CORS
 from datetime import datetime
+from typing import Dict, Any, Optional
+import base64
+from io import BytesIO
 
-# Import analysis components
-from .text_ai_analyzer import TextAIAnalyzer
-from .pattern_analyzer import PatternAnalyzer
-from .perplexity_analyzer import PerplexityAnalyzer
-from .copyleaks_detector import CopyleaksDetector
-from .statistical_analyzer import StatisticalAnalyzer
+# Import AI detection services - FIXED: Using absolute imports
+from services.ai_detector import AIDetector
+from services.text_ai_analyzer import TextAIAnalyzer
+from services.image_ai_analyzer import ImageAIAnalyzer
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class AIDetector:
-    """Main orchestrator for comprehensive AI detection analysis"""
-    
-    def __init__(self):
-        """Initialize all analysis components"""
-        # Initialize analyzers
-        self.text_analyzer = TextAIAnalyzer()
-        self.pattern_analyzer = PatternAnalyzer()
-        self.perplexity_analyzer = PerplexityAnalyzer()
-        self.copyleaks_detector = CopyleaksDetector()
-        self.statistical_analyzer = StatisticalAnalyzer()
-        
-        logger.info("AI Detector initialized with all analyzers")
-    
-    def analyze_text(self, text: str, is_pro: bool = False) -> Dict[str, Any]:
-        """
-        Comprehensive text analysis for AI detection
-        """
-        try:
-            # Start timing
-            start_time = datetime.now()
-            
-            # Basic analysis (free tier)
-            analysis_results = {
-                'success': True,
-                'content_type': 'text',
-                'content_length': len(text),
-                'word_count': len(text.split()),
-                'analysis_timestamp': datetime.utcnow().isoformat(),
-                'is_pro': is_pro
-            }
-            
-            # Pattern analysis (always included)
-            pattern_results = self.pattern_analyzer.analyze(text)
-            analysis_results['pattern_analysis'] = pattern_results
-            
-            # Perplexity analysis (always included)
-            perplexity_results = self.perplexity_analyzer.analyze(text)
-            analysis_results['perplexity_analysis'] = perplexity_results
-            
-            # Statistical analysis (always included)
-            statistical_results = self.statistical_analyzer.analyze(text)
-            analysis_results['statistical_analysis'] = statistical_results
-            
-            # Calculate initial AI probability based on free analyses
-            ai_probability = self._calculate_text_ai_probability(
-                pattern_results, 
-                perplexity_results,
-                statistical_results
-            )
-            
-            analysis_results['ai_probability'] = ai_probability
-            analysis_results['confidence_level'] = self._get_confidence_level(ai_probability)
-            
-            # Pro features
-            if is_pro:
-                # Copyleaks AI detection
-                copyleaks_results = self.copyleaks_detector.detect_ai(text)
-                analysis_results['copyleaks_analysis'] = copyleaks_results
-                
-                # Advanced pattern detection
-                analysis_results['advanced_patterns'] = self.pattern_analyzer.advanced_analysis(text)
-                
-                # Detailed linguistic analysis
-                analysis_results['linguistic_analysis'] = self._perform_linguistic_analysis(text)
-                
-                # AI model fingerprinting
-                analysis_results['model_detection'] = self._detect_ai_model(text)
-                
-                # Section-by-section analysis
-                analysis_results['section_analysis'] = self._analyze_sections(text)
-                
-                # Recalculate with all data
-                ai_probability = self._calculate_pro_text_ai_probability(analysis_results)
-                analysis_results['ai_probability'] = ai_probability
-                analysis_results['confidence_level'] = self._get_confidence_level(ai_probability)
-                
-                # Add detailed breakdown
-                analysis_results['detection_breakdown'] = self._create_detection_breakdown(analysis_results)
-            
-            # Add summary
-            analysis_results['summary'] = self._create_text_summary(analysis_results)
-            
-            # Calculate processing time
-            processing_time = (datetime.now() - start_time).total_seconds()
-            analysis_results['processing_time'] = round(processing_time, 2)
-            
-            return analysis_results
-            
-        except Exception as e:
-            logger.error(f"Text analysis error: {str(e)}", exc_info=True)
-            return {
-                'success': False,
-                'error': f'Text analysis failed: {str(e)}'
-            }
-    
-    def analyze_url(self, url: str, is_pro: bool = False) -> Dict[str, Any]:
-        """
-        Analyze text content from URL
-        """
-        try:
-            # Extract content from URL
-            content_data = self.text_analyzer.extract_from_url(url)
-            
-            if not content_data.get('success'):
-                return content_data
-            
-            # Analyze text content
-            text = content_data.get('text', '')
-            if text:
-                result = self.analyze_text(text, is_pro)
-                # Add URL metadata
-                result['source_url'] = url
-                result['source_title'] = content_data.get('title')
-                result['source_domain'] = content_data.get('domain')
-                return result
-            else:
-                return {'success': False, 'error': 'No text content found at URL'}
-                    
-        except Exception as e:
-            logger.error(f"URL analysis error: {str(e)}", exc_info=True)
-            return {
-                'success': False,
-                'error': f'URL analysis failed: {str(e)}'
-            }
-    
-    def _calculate_text_ai_probability(self, pattern_results: Dict, perplexity_results: Dict, 
-                                     statistical_results: Dict) -> float:
-        """Calculate AI probability for text based on free tier analyses"""
-        scores = []
-        weights = []
-        
-        # Pattern analysis score (weight: 30%)
-        if pattern_results.get('ai_patterns_score') is not None:
-            scores.append(pattern_results['ai_patterns_score'])
-            weights.append(0.3)
-        
-        # Perplexity score (weight: 35%)
-        if perplexity_results.get('ai_probability') is not None:
-            scores.append(perplexity_results['ai_probability'])
-            weights.append(0.35)
-        
-        # Statistical score (weight: 35%)
-        if statistical_results.get('ai_probability') is not None:
-            scores.append(statistical_results['ai_probability'])
-            weights.append(0.35)
-        
-        if not scores:
-            return 50.0
-        
-        # Weighted average
-        total_weight = sum(weights)
-        weighted_sum = sum(score * weight for score, weight in zip(scores, weights))
-        
-        return round(weighted_sum / total_weight, 1)
-    
-    def _calculate_pro_text_ai_probability(self, analysis_results: Dict) -> float:
-        """Calculate AI probability with all pro features"""
-        scores = []
-        weights = []
-        
-        # Basic scores (40% total)
-        if analysis_results.get('pattern_analysis', {}).get('ai_patterns_score') is not None:
-            scores.append(analysis_results['pattern_analysis']['ai_patterns_score'])
-            weights.append(0.15)
-        
-        if analysis_results.get('perplexity_analysis', {}).get('ai_probability') is not None:
-            scores.append(analysis_results['perplexity_analysis']['ai_probability'])
-            weights.append(0.15)
-        
-        if analysis_results.get('statistical_analysis', {}).get('ai_probability') is not None:
-            scores.append(analysis_results['statistical_analysis']['ai_probability'])
-            weights.append(0.10)
-        
-        # Copyleaks score (40% - highest weight due to accuracy)
-        if analysis_results.get('copyleaks_analysis', {}).get('ai_probability') is not None:
-            scores.append(analysis_results['copyleaks_analysis']['ai_probability'])
-            weights.append(0.40)
-        
-        # Advanced patterns (10%)
-        if analysis_results.get('advanced_patterns', {}).get('ai_score') is not None:
-            scores.append(analysis_results['advanced_patterns']['ai_score'])
-            weights.append(0.10)
-        
-        # Model detection (10%)
-        if analysis_results.get('model_detection', {}).get('confidence') is not None:
-            scores.append(analysis_results['model_detection']['confidence'])
-            weights.append(0.10)
-        
-        if not scores:
-            return 50.0
-        
-        # Weighted average
-        total_weight = sum(weights)
-        weighted_sum = sum(score * weight for score, weight in zip(scores, weights))
-        
-        return round(weighted_sum / total_weight, 1)
-    
-    def _get_confidence_level(self, ai_probability: float) -> str:
-        """Get confidence level description"""
-        if ai_probability >= 90:
-            return "Very High"
-        elif ai_probability >= 75:
-            return "High"
-        elif ai_probability >= 60:
-            return "Moderate"
-        elif ai_probability >= 40:
-            return "Low"
-        else:
-            return "Very Low"
-    
-    def _create_text_summary(self, analysis_results: Dict) -> str:
-        """Create a summary for text analysis"""
-        ai_prob = analysis_results.get('ai_probability', 50)
-        confidence = analysis_results.get('confidence_level', 'Unknown')
-        
-        if ai_prob >= 80:
-            summary = f"This text shows strong indicators of AI generation with {ai_prob}% probability. "
-            summary += "Multiple detection methods confirm AI involvement."
-        elif ai_prob >= 60:
-            summary = f"This text likely contains AI-generated content with {ai_prob}% probability. "
-            summary += "Several AI patterns were detected."
-        elif ai_prob >= 40:
-            summary = f"This text shows some AI characteristics with {ai_prob}% probability. "
-            summary += "Mixed signals suggest possible AI assistance or editing."
-        else:
-            summary = f"This text appears to be human-written with only {ai_prob}% AI probability. "
-            summary += "Natural writing patterns dominate."
-        
-        return summary
-    
-    def _create_detection_breakdown(self, analysis_results: Dict) -> Dict[str, Any]:
-        """Create detailed breakdown of detection results"""
-        breakdown = {
-            'detection_methods': [],
-            'key_indicators': [],
-            'confidence_factors': []
+# Initialize Flask app with explicit static folder configuration
+app = Flask(__name__, 
+            static_folder='static',
+            static_url_path='/static')
+CORS(app)
+
+# Configuration
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+
+# Initialize services
+try:
+    ai_detector = AIDetector()
+    text_analyzer = TextAIAnalyzer()
+    image_analyzer = ImageAIAnalyzer()
+    logger.info("AI detection services initialized successfully")
+except Exception as e:
+    logger.error(f"Error initializing services: {e}")
+    ai_detector = None
+    text_analyzer = None
+    image_analyzer = None
+
+@app.route('/')
+def index():
+    """Serve the main page"""
+    return render_template('index.html')
+
+@app.route('/api/health')
+def health():
+    """Health check endpoint for monitoring"""
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.utcnow().isoformat(),
+        'services': {
+            'ai_detector': ai_detector is not None,
+            'text_analyzer': text_analyzer is not None,
+            'image_analyzer': image_analyzer is not None
         }
+    })
+
+@app.route('/api/analyze', methods=['POST'])
+def analyze():
+    """
+    Main analysis endpoint for AI detection
+    Accepts: 
+    - Text: { "text": "content to analyze..." }
+    - Image: { "image": "base64_encoded_image_data", "image_type": "image/jpeg" }
+    - URL: { "url": "https://..." }
+    Returns: Comprehensive AI detection analysis
+    """
+    try:
+        # Get request data
+        if request.content_type.startswith('multipart/form-data'):
+            # Handle file upload
+            data = {}
+            if 'text' in request.form:
+                data['text'] = request.form['text']
+            if 'image' in request.files:
+                image_file = request.files['image']
+                if image_file:
+                    # Convert to base64
+                    image_data = image_file.read()
+                    data['image'] = base64.b64encode(image_data).decode('utf-8')
+                    data['image_type'] = image_file.content_type
+        else:
+            # Handle JSON request
+            data = request.get_json()
+            
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No data provided'
+            }), 400
         
-        # Add detection methods
-        if 'pattern_analysis' in analysis_results:
-            breakdown['detection_methods'].append({
-                'method': 'Pattern Analysis',
-                'score': analysis_results['pattern_analysis'].get('ai_patterns_score', 0),
-                'weight': '15%'
-            })
+        # Determine content type
+        text = data.get('text')
+        image = data.get('image')
+        image_type = data.get('image_type', 'image/jpeg')
+        url = data.get('url')
         
-        if 'perplexity_analysis' in analysis_results:
-            breakdown['detection_methods'].append({
-                'method': 'Perplexity Analysis',
-                'score': analysis_results['perplexity_analysis'].get('ai_probability', 0),
-                'weight': '15%'
-            })
+        # Check if services are available
+        if not ai_detector:
+            return jsonify({
+                'success': False,
+                'error': 'AI detection service is temporarily unavailable'
+            }), 503
         
-        if 'statistical_analysis' in analysis_results:
-            breakdown['detection_methods'].append({
-                'method': 'Statistical Analysis',
-                'score': analysis_results['statistical_analysis'].get('ai_probability', 0),
-                'weight': '10%'
-            })
+        # Determine if user is pro
+        is_pro = data.get('is_pro', False)
         
-        if 'copyleaks_analysis' in analysis_results:
-            breakdown['detection_methods'].append({
-                'method': 'Copyleaks AI Detection',
-                'score': analysis_results['copyleaks_analysis'].get('ai_probability', 0),
-                'weight': '40%'
-            })
+        # Perform analysis based on content type
+        result = None
         
-        # Add key indicators
-        if analysis_results.get('pattern_analysis', {}).get('detected_patterns'):
-            for pattern in analysis_results['pattern_analysis']['detected_patterns']:
-                breakdown['key_indicators'].append({
-                    'type': 'pattern',
-                    'description': pattern['description'],
-                    'severity': pattern['severity']
-                })
+        if text:
+            logger.info("Analyzing text content for AI participation")
+            result = ai_detector.analyze_text(text, is_pro=is_pro)
+            
+        elif image:
+            logger.info("Analyzing image for AI generation")
+            result = ai_detector.analyze_image(image, image_type=image_type, is_pro=is_pro)
+            
+        elif url:
+            logger.info(f"Analyzing content from URL: {url}")
+            result = ai_detector.analyze_url(url, is_pro=is_pro)
+            
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'No content provided. Please provide text, image, or URL.'
+            }), 400
         
-        # Add confidence factors
-        if analysis_results.get('confidence_level') == 'Very High':
-            breakdown['confidence_factors'].append('Multiple methods show strong agreement')
-        elif analysis_results.get('confidence_level') == 'High':
-            breakdown['confidence_factors'].append('Most methods indicate AI generation')
+        # Check if analysis was successful
+        if not result.get('success', False):
+            error_msg = result.get('error', 'Analysis failed')
+            logger.error(f"Analysis failed: {error_msg}")
+            return jsonify({
+                'success': False,
+                'error': error_msg
+            }), 400
         
-        if analysis_results.get('copyleaks_analysis', {}).get('confidence') == 'high':
-            breakdown['confidence_factors'].append('Professional AI detection confirms findings')
+        logger.info(f"Analysis completed. AI probability: {result.get('ai_probability', 'N/A')}%")
+        return jsonify(result)
         
-        return breakdown
+    except Exception as e:
+        logger.error(f"Analysis error: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': f'Analysis failed: {str(e)}'
+        }), 500
+
+@app.route('/api/extract-text', methods=['POST'])
+def extract_text():
+    """
+    Extract text from URL for analysis
+    Accepts: { "url": "https://..." }
+    Returns: Extracted text content
+    """
+    try:
+        data = request.get_json()
+        if not data or not data.get('url'):
+            return jsonify({
+                'success': False,
+                'error': 'URL is required'
+            }), 400
+        
+        url = data.get('url')
+        logger.info(f"Extracting text from: {url}")
+        
+        if not text_analyzer:
+            return jsonify({
+                'success': False,
+                'error': 'Text extraction service is temporarily unavailable'
+            }), 503
+        
+        # Extract text
+        result = text_analyzer.extract_from_url(url)
+        
+        if not result.get('success', False):
+            error_msg = result.get('error', 'Extraction failed')
+            logger.error(f"Extraction failed: {error_msg}")
+            return jsonify({
+                'success': False,
+                'error': error_msg
+            }), 400
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Extraction error: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': f'Extraction failed: {str(e)}'
+        }), 500
+
+@app.route('/api/batch-analyze', methods=['POST'])
+def batch_analyze():
+    """
+    Batch analysis endpoint for multiple items
+    Pro feature only
+    """
+    try:
+        data = request.get_json()
+        if not data or not data.get('items'):
+            return jsonify({
+                'success': False,
+                'error': 'Items array is required'
+            }), 400
+        
+        # Check if pro
+        if not data.get('is_pro', False):
+            return jsonify({
+                'success': False,
+                'error': 'Batch analysis is a premium feature'
+            }), 403
+        
+        items = data.get('items', [])
+        if len(items) > 10:
+            return jsonify({
+                'success': False,
+                'error': 'Maximum 10 items per batch'
+            }), 400
+        
+        # Process batch
+        results = []
+        for item in items:
+            if item.get('text'):
+                result = ai_detector.analyze_text(item['text'], is_pro=True)
+            elif item.get('image'):
+                result = ai_detector.analyze_image(
+                    item['image'], 
+                    item.get('image_type', 'image/jpeg'), 
+                    is_pro=True
+                )
+            else:
+                result = {'success': False, 'error': 'Invalid item type'}
+            
+            results.append(result)
+        
+        return jsonify({
+            'success': True,
+            'results': results
+        })
+        
+    except Exception as e:
+        logger.error(f"Batch analysis error: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': f'Batch analysis failed: {str(e)}'
+        }), 500
+
+# Serve static files explicitly
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    """Serve static files"""
+    return send_from_directory(app.static_folder, filename)
+
+# Error handlers
+@app.errorhandler(404)
+def not_found(error):
+    """Handle 404 errors"""
+    return jsonify({
+        'success': False,
+        'error': 'Endpoint not found'
+    }), 404
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    """Handle file too large errors"""
+    return jsonify({
+        'success': False,
+        'error': 'File too large. Maximum size is 16MB.'
+    }), 413
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle 500 errors"""
+    logger.error(f"Internal server error: {error}")
+    return jsonify({
+        'success': False,
+        'error': 'Internal server error'
+    }), 500
+
+if __name__ == '__main__':
+    # Get port from environment variable (for deployment)
+    port = int(os.environ.get('PORT', 5000))
     
-    def _perform_linguistic_analysis(self, text: str) -> Dict[str, Any]:
-        """Perform advanced linguistic analysis"""
-        try:
-            # Calculate various linguistic metrics
-            words = text.split()
-            sentences = self._split_sentences(text)
-            
-            # Vocabulary complexity
-            unique_words = set(word.lower() for word in words)
-            vocabulary_complexity = 'high' if len(unique_words) / len(words) > 0.5 else 'moderate'
-            
-            # Sentence variety
-            sentence_lengths = [len(s.split()) for s in sentences]
-            length_variance = self._calculate_variance(sentence_lengths) if sentence_lengths else 0
-            sentence_variety = 'high' if length_variance > 50 else 'low'
-            
-            # Coherence score (simplified)
-            coherence_score = 85 if len(sentences) > 5 else 75
-            
-            # Style consistency (simplified)
-            style_consistency = 92 if len(unique_words) > 100 else 85
-            
-            return {
-                'vocabulary_complexity': vocabulary_complexity,
-                'sentence_variety': sentence_variety,
-                'coherence_score': coherence_score,
-                'style_consistency': style_consistency,
-                'avg_sentence_length': round(sum(sentence_lengths) / len(sentence_lengths), 1) if sentence_lengths else 0,
-                'unique_word_ratio': round(len(unique_words) / len(words), 3) if words else 0
-            }
-        except Exception as e:
-            logger.error(f"Linguistic analysis error: {e}")
-            return {
-                'vocabulary_complexity': 'moderate',
-                'sentence_variety': 'low',
-                'coherence_score': 85,
-                'style_consistency': 92
-            }
-    
-    def _detect_ai_model(self, text: str) -> Dict[str, Any]:
-        """Attempt to detect which AI model generated the text"""
-        try:
-            # Model fingerprinting based on patterns
-            detected_model = 'Unknown'
-            confidence = 50
-            model_signatures = []
-            
-            text_lower = text.lower()
-            
-            # GPT signatures
-            gpt_patterns = [
-                ('I cannot and will not', 'GPT Safety Response'),
-                ('As an AI language model', 'GPT Self-Reference'),
-                ('I don\'t have access to real-time', 'GPT Limitation Statement'),
-                ('It\'s important to note that', 'GPT Hedging Pattern'),
-                ('I must emphasize', 'GPT Emphasis Pattern'),
-                ('I should clarify', 'GPT Clarification Pattern')
-            ]
-            
-            for pattern, name in gpt_patterns:
-                if pattern.lower() in text_lower:
-                    model_signatures.append({
-                        'model': 'GPT',
-                        'signature': name,
-                        'confidence': 85
-                    })
-                    detected_model = 'GPT (ChatGPT/GPT-4)'
-                    confidence = max(confidence, 85)
-            
-            # Claude signatures
-            claude_patterns = [
-                ('I understand you\'re asking', 'Claude Understanding Pattern'),
-                ('I\'d be happy to help', 'Claude Helpful Pattern'),
-                ('Could you clarify', 'Claude Clarification Pattern'),
-                ('I appreciate your', 'Claude Appreciation Pattern'),
-                ('Let me address', 'Claude Structure Pattern')
-            ]
-            
-            for pattern, name in claude_patterns:
-                if pattern.lower() in text_lower:
-                    model_signatures.append({
-                        'model': 'Claude',
-                        'signature': name,
-                        'confidence': 80
-                    })
-                    if detected_model == 'Unknown':
-                        detected_model = 'Claude (Anthropic)'
-                        confidence = max(confidence, 80)
-            
-            # Bard/Gemini signatures
-            bard_patterns = [
-                ('based on my knowledge', 'Bard Knowledge Pattern'),
-                ('I can help you with', 'Bard Assistance Pattern'),
-                ('Here\'s what I found', 'Bard Search Pattern')
-            ]
-            
-            for pattern, name in bard_patterns:
-                if pattern.lower() in text_lower:
-                    model_signatures.append({
-                        'model': 'Bard/Gemini',
-                        'signature': name,
-                        'confidence': 75
-                    })
-                    if detected_model == 'Unknown':
-                        detected_model = 'Bard/Gemini (Google)'
-                        confidence = max(confidence, 75)
-            
-            return {
-                'detected_model': detected_model,
-                'confidence': confidence,
-                'model_signatures': model_signatures
-            }
-            
-        except Exception as e:
-            logger.error(f"Model detection error: {e}")
-            return {
-                'detected_model': 'Unknown',
-                'confidence': 50,
-                'model_signatures': []
-            }
-    
-    def _analyze_sections(self, text: str) -> List[Dict[str, Any]]:
-        """Analyze text section by section"""
-        try:
-            # Split text into paragraphs
-            paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
-            
-            if not paragraphs:
-                # If no double newlines, try single newlines
-                paragraphs = [p.strip() for p in text.split('\n') if p.strip() and len(p.strip()) > 50]
-            
-            sections = []
-            for i, paragraph in enumerate(paragraphs[:10]):  # Limit to first 10 paragraphs
-                # Analyze each section
-                section_analysis = {
-                    'text': paragraph[:200] + '...' if len(paragraph) > 200 else paragraph,
-                    'ai_probability': self._quick_ai_check(paragraph),
-                    'word_count': len(paragraph.split())
-                }
-                sections.append(section_analysis)
-            
-            return sections
-            
-        except Exception as e:
-            logger.error(f"Section analysis error: {e}")
-            return []
-    
-    def _quick_ai_check(self, text: str) -> float:
-        """Quick AI probability check for a text section"""
-        ai_score = 50
-        text_lower = text.lower()
-        
-        # Check for AI indicators
-        ai_phrases = [
-            'furthermore', 'moreover', 'it is important to note',
-            'in conclusion', 'delve into', 'navigate', 'leverage'
-        ]
-        
-        for phrase in ai_phrases:
-            if phrase in text_lower:
-                ai_score += 10
-        
-        # Check sentence structure
-        sentences = self._split_sentences(text)
-        if sentences:
-            # Very uniform sentence lengths suggest AI
-            lengths = [len(s.split()) for s in sentences]
-            if len(set(lengths)) < len(lengths) / 2:
-                ai_score += 15
-        
-        return min(ai_score, 95)
-    
-    def _split_sentences(self, text: str) -> List[str]:
-        """Split text into sentences"""
-        import re
-        sentences = re.split(r'[.!?]+', text)
-        return [s.strip() for s in sentences if s.strip()]
-    
-    def _calculate_variance(self, values: List[float]) -> float:
-        """Calculate variance of a list of values"""
-        if not values:
-            return 0
-        mean = sum(values) / len(values)
-        variance = sum((x - mean) ** 2 for x in values) / len(values)
-        return variance
+    # Run the app
+    app.run(
+        host='0.0.0.0',
+        port=port,
+        debug=os.environ.get('FLASK_ENV') == 'development'
+    )
