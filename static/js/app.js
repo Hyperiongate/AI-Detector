@@ -1,14 +1,13 @@
-// static/js/app.js - AI Detection Application Logic
+// static/js/app.js - AI & Plagiarism Detection Application Logic
 
-class AIDetectionApp {
+class TextAnalysisApp {
     constructor() {
         this.currentAnalysis = null;
         this.isPremium = false;
-        this.currentTab = 'text';
+        this.analysisType = 'ai'; // 'ai' or 'plagiarism'
         this.API_ENDPOINT = '/api/analyze';
         this.progressInterval = null;
         this.analysisStartTime = null;
-        this.uploadedImage = null;
         
         this.init();
     }
@@ -25,38 +24,13 @@ class AIDetectionApp {
     }
 
     setupEventListeners() {
-        // Tab switching
-        window.switchTab = (tab) => {
-            this.currentTab = tab;
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.tab === tab);
+        // Analysis type selection
+        document.querySelectorAll('input[name="analysisType"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                this.analysisType = e.target.value;
+                this.updateAnalyzeButton();
             });
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.style.display = content.id === `${tab}-tab` ? 'block' : 'none';
-            });
-        };
-
-        // Image upload drag and drop
-        const uploadArea = document.getElementById('imageUploadArea');
-        if (uploadArea) {
-            uploadArea.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                uploadArea.classList.add('drag-over');
-            });
-
-            uploadArea.addEventListener('dragleave', () => {
-                uploadArea.classList.remove('drag-over');
-            });
-
-            uploadArea.addEventListener('drop', (e) => {
-                e.preventDefault();
-                uploadArea.classList.remove('drag-over');
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    this.handleImageFile(files[0]);
-                }
-            });
-        }
+        });
 
         // Global functions
         window.analyzeContent = () => this.analyzeContent();
@@ -66,8 +40,27 @@ class AIDetectionApp {
         window.showPricing = () => this.showPricing();
         window.showHowItWorks = () => this.showHowItWorks();
         window.hideHowItWorks = () => this.hideHowItWorks();
-        window.handleImageUpload = (event) => this.handleImageUpload(event);
-        window.removeImage = () => this.removeImage();
+        window.updateCharCount = () => this.updateCharCount();
+        window.clearText = () => this.clearText();
+    }
+
+    updateAnalyzeButton() {
+        const btn = document.getElementById('analyzeBtn');
+        if (this.analysisType === 'plagiarism') {
+            btn.innerHTML = '<i class="fas fa-search"></i> <span>Check for Plagiarism</span>';
+        } else {
+            btn.innerHTML = '<i class="fas fa-search"></i> <span>Check for AI</span>';
+        }
+    }
+
+    updateCharCount() {
+        const text = document.getElementById('textInput').value;
+        document.getElementById('charCount').textContent = `${text.length} characters`;
+    }
+
+    clearText() {
+        document.getElementById('textInput').value = '';
+        this.updateCharCount();
     }
 
     showHowItWorks() {
@@ -78,97 +71,38 @@ class AIDetectionApp {
         document.getElementById('howItWorksSection').style.display = 'none';
     }
 
-    handleImageUpload(event) {
-        const file = event.target.files[0];
-        if (file) {
-            this.handleImageFile(file);
-        }
-    }
-
-    handleImageFile(file) {
-        // Validate file type
-        const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-        if (!validTypes.includes(file.type)) {
-            this.showError('Please upload a valid image file (JPG, PNG, WebP, or GIF)');
-            return;
-        }
-
-        // Validate file size (16MB max)
-        if (file.size > 16 * 1024 * 1024) {
-            this.showError('Image size must be less than 16MB');
-            return;
-        }
-
-        // Read and display image
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            this.uploadedImage = {
-                data: e.target.result.split(',')[1], // Remove data:image/jpeg;base64, prefix
-                type: file.type,
-                name: file.name
-            };
-            
-            // Show preview
-            document.getElementById('previewImg').src = e.target.result;
-            document.getElementById('imagePreview').style.display = 'block';
-            document.querySelector('.upload-label').style.display = 'none';
-        };
-        reader.readAsDataURL(file);
-    }
-
-    removeImage() {
-        this.uploadedImage = null;
-        document.getElementById('imagePreview').style.display = 'none';
-        document.querySelector('.upload-label').style.display = 'flex';
-        document.getElementById('imageInput').value = '';
-    }
-
     async analyzeContent() {
         this.analysisStartTime = Date.now();
         
-        // Get input based on current tab
-        let requestData = { is_pro: this.isPremium };
-        
-        if (this.currentTab === 'text') {
-            const text = document.getElementById('textInput').value.trim();
-            if (!text || text.length < 50) {
-                this.showError('Please enter at least 50 characters of text');
-                return;
-            }
-            requestData.text = text;
-            
-        } else if (this.currentTab === 'image') {
-            if (!this.uploadedImage) {
-                this.showError('Please upload an image to analyze');
-                return;
-            }
-            requestData.image = this.uploadedImage.data;
-            requestData.image_type = this.uploadedImage.type;
-            
-        } else if (this.currentTab === 'url') {
-            const url = document.getElementById('urlInput').value.trim();
-            if (!url || !this.isValidUrl(url)) {
-                this.showError('Please enter a valid URL');
-                return;
-            }
-            requestData.url = url;
+        // Get text input
+        const text = document.getElementById('textInput').value.trim();
+        if (!text || text.length < 50) {
+            this.showError('Please enter at least 50 characters of text');
+            return;
         }
+
+        // Prepare request data
+        const requestData = {
+            text: text,
+            analysis_type: this.analysisType,
+            is_pro: this.isPremium
+        };
 
         // Reset UI
         this.hideError();
         document.getElementById('resultsSection').style.display = 'none';
+        document.getElementById('aiResults').style.display = 'none';
+        document.getElementById('plagiarismResults').style.display = 'none';
         document.getElementById('premiumAnalysis').style.display = 'none';
         document.getElementById('premiumCTA').style.display = 'block';
         
         // Show progress
         this.showProgress();
         
-        // Disable analyze buttons
-        const analyzeBtns = document.querySelectorAll('.analyze-btn');
-        analyzeBtns.forEach(btn => {
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
-        });
+        // Disable analyze button
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        analyzeBtn.disabled = true;
+        analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
 
         try {
             // Call API
@@ -195,24 +129,16 @@ class AIDetectionApp {
             this.displayResults(data);
             
             // Log success
-            console.log('AI Detection Analysis complete:', data);
+            console.log('Analysis complete:', data);
             
         } catch (error) {
             console.error('Analysis error:', error);
             this.showError(error.message || 'An error occurred during analysis');
             this.hideProgress();
         } finally {
-            // Re-enable buttons
-            analyzeBtns.forEach(btn => {
-                btn.disabled = false;
-                if (this.currentTab === 'text') {
-                    btn.innerHTML = '<i class="fas fa-search"></i> <span>Analyze Text</span>';
-                } else if (this.currentTab === 'image') {
-                    btn.innerHTML = '<i class="fas fa-search"></i> <span>Analyze Image</span>';
-                } else {
-                    btn.innerHTML = '<i class="fas fa-search"></i> <span>Analyze</span>';
-                }
-            });
+            // Re-enable button
+            analyzeBtn.disabled = false;
+            this.updateAnalyzeButton();
         }
     }
 
@@ -220,16 +146,42 @@ class AIDetectionApp {
         const progressSection = document.getElementById('progressSection');
         progressSection.style.display = 'block';
         
-        // Reset progress
-        const stages = ['extract', 'patterns', 'perplexity', 'statistical', 'score'];
+        // Update title and show correct stages
+        const title = document.getElementById('progressTitle');
+        const aiStages = document.getElementById('aiProgressStages');
+        const plagiarismStages = document.getElementById('plagiarismProgressStages');
+        
+        if (this.analysisType === 'plagiarism') {
+            title.textContent = 'Plagiarism Check in Progress';
+            aiStages.style.display = 'none';
+            plagiarismStages.style.display = 'flex';
+            this.animateProgressStages(['submit', 'internet', 'academic', 'similarity', 'report']);
+        } else {
+            title.textContent = 'AI Detection Analysis in Progress';
+            aiStages.style.display = 'flex';
+            plagiarismStages.style.display = 'none';
+            this.animateProgressStages(['extract', 'patterns', 'perplexity', 'statistical', 'score']);
+        }
+    }
+
+    animateProgressStages(stages) {
         let currentStage = 0;
-        let methodCount = 0;
+        
+        // Reset progress
+        document.getElementById('progressFill').style.width = '0%';
+        document.querySelectorAll('.stage').forEach(stage => {
+            stage.classList.remove('active', 'complete');
+        });
         
         // Animate stages
         this.progressInterval = setInterval(() => {
             if (currentStage < stages.length) {
                 // Mark current stage as active
-                document.querySelectorAll('.stage').forEach((stage, index) => {
+                const stageElements = document.querySelectorAll(
+                    `#${this.analysisType === 'plagiarism' ? 'plagiarismProgressStages' : 'aiProgressStages'} .stage`
+                );
+                
+                stageElements.forEach((stage, index) => {
                     if (index < currentStage) {
                         stage.classList.add('complete');
                         stage.classList.remove('active');
@@ -242,15 +194,31 @@ class AIDetectionApp {
                 const progress = ((currentStage + 1) / stages.length) * 100;
                 document.getElementById('progressFill').style.width = `${progress}%`;
                 
-                // Update method count
-                if (currentStage === 2) {
-                    methodCount = Math.min(methodCount + 1, 5);
-                    document.getElementById('methodCount').textContent = methodCount;
-                }
+                // Update message
+                document.getElementById('progressMessage').textContent = 
+                    this.getProgressMessage(stages[currentStage]);
                 
                 currentStage++;
             }
         }, 800);
+    }
+
+    getProgressMessage(stage) {
+        const messages = {
+            // AI stages
+            'extract': 'Processing your text...',
+            'patterns': 'Analyzing AI writing patterns...',
+            'perplexity': 'Calculating text perplexity...',
+            'statistical': 'Running statistical analysis...',
+            'score': 'Calculating final AI probability...',
+            // Plagiarism stages
+            'submit': 'Submitting text for analysis...',
+            'internet': 'Searching billions of web pages...',
+            'academic': 'Checking academic databases...',
+            'similarity': 'Analyzing text similarity...',
+            'report': 'Generating plagiarism report...'
+        };
+        return messages[stage] || 'Processing...';
     }
 
     hideProgress() {
@@ -262,11 +230,6 @@ class AIDetectionApp {
             clearInterval(this.progressInterval);
             this.progressInterval = null;
         }
-        
-        // Reset stages
-        document.querySelectorAll('.stage').forEach(stage => {
-            stage.classList.remove('active', 'complete');
-        });
     }
 
     displayResults(data) {
@@ -284,36 +247,65 @@ class AIDetectionApp {
             });
         }, 100);
 
+        if (this.analysisType === 'plagiarism') {
+            this.displayPlagiarismResults(data, analysisTime);
+        } else {
+            this.displayAIResults(data, analysisTime);
+        }
+    }
+
+    displayAIResults(data, analysisTime) {
+        // Show AI results container
+        document.getElementById('aiResults').style.display = 'block';
+        document.getElementById('plagiarismResults').style.display = 'none';
+        
         // Display AI probability with animation
         const aiProbability = data.ai_probability || 50;
         this.animateAIProbability(aiProbability);
         
-        // Display content info
-        document.getElementById('contentType').textContent = data.content_type === 'text' ? 'Text Content' : 'Image Content';
-        document.getElementById('contentLength').textContent = data.content_type === 'text' ? 
-            `${data.word_count || 0} words` : 'Image analyzed';
-        document.getElementById('analysisTime').textContent = `${analysisTime}s`;
-        document.getElementById('confidenceLevel').textContent = `${data.confidence_level || 'Unknown'} confidence`;
-        
         // Display summary
-        document.getElementById('analysisSummary').textContent = data.summary || 'Analysis complete';
+        document.getElementById('aiSummaryText').textContent = data.summary || 'Analysis complete';
         
         // Update quick stats
         const patternCount = data.pattern_analysis?.detected_patterns?.length || 0;
         document.getElementById('patternCount').textContent = patternCount;
         document.getElementById('methodsUsed').textContent = '5+';
-        document.getElementById('accuracyRate').textContent = Math.round(this.calculateConfidence(data));
+        document.getElementById('confidenceRate').textContent = Math.round(this.calculateConfidence(data));
         
-        // Display detection breakdown
-        document.getElementById('detectionBreakdown').innerHTML = 
-            this.createDetectionBreakdown(data);
-        
-        // Create indicators summary
-        this.createIndicatorsSummary(data);
+        // Display basic findings (free tier)
+        this.displayBasicAIFindings(data);
         
         // If premium, show all analysis
         if (this.isPremium && data.is_pro) {
-            this.displayPremiumAnalysis(data);
+            this.displayPremiumAIAnalysis(data);
+        }
+    }
+
+    displayPlagiarismResults(data, analysisTime) {
+        // Show plagiarism results container
+        document.getElementById('plagiarismResults').style.display = 'block';
+        document.getElementById('aiResults').style.display = 'none';
+        
+        // Display plagiarism score
+        const plagiarismScore = data.plagiarism_score || 0;
+        this.animatePlagiarismScore(plagiarismScore);
+        
+        // Display summary
+        document.getElementById('plagiarismSummaryText').textContent = data.summary || 'Analysis complete';
+        
+        // Update quick stats
+        document.getElementById('similarityPercent').textContent = plagiarismScore;
+        document.getElementById('sourcesFound').textContent = data.sources_found || 0;
+        document.getElementById('flaggedPassages').textContent = data.flagged_passages?.length || 0;
+        
+        // Display plagiarized sections if any
+        if (data.flagged_passages && data.flagged_passages.length > 0) {
+            this.displayPlagiarizedSections(data.flagged_passages);
+        }
+        
+        // If premium, show detailed analysis
+        if (this.isPremium && data.is_pro) {
+            this.displayPremiumPlagiarismAnalysis(data);
         }
     }
 
@@ -341,6 +333,46 @@ class AIDetectionApp {
         } else {
             labelText = 'Human Created';
             descText = 'This content appears to be created by a human with minimal AI involvement.';
+        }
+        
+        // Animate text appearance
+        setTimeout(() => {
+            label.textContent = labelText;
+            label.style.opacity = '0';
+            label.style.animation = 'fadeIn 0.5s forwards';
+        }, 500);
+        
+        setTimeout(() => {
+            description.textContent = descText;
+            description.style.opacity = '0';
+            description.style.animation = 'fadeIn 0.5s forwards';
+        }, 700);
+    }
+
+    animatePlagiarismScore(score) {
+        // Create gauge chart
+        this.createPlagiarismGauge('plagiarismGauge', score);
+        
+        // Set label and description
+        const label = document.getElementById('plagiarismLabel');
+        const description = document.getElementById('plagiarismDescription');
+        
+        let labelText, descText;
+        if (score >= 80) {
+            labelText = 'High Plagiarism Detected';
+            descText = 'Significant portions of this text match existing sources.';
+        } else if (score >= 50) {
+            labelText = 'Moderate Plagiarism';
+            descText = 'Several passages appear to be copied or closely paraphrased.';
+        } else if (score >= 20) {
+            labelText = 'Some Similarity Found';
+            descText = 'Minor similarities detected, possibly common phrases or citations.';
+        } else if (score >= 10) {
+            labelText = 'Minimal Similarity';
+            descText = 'Very few matches found, likely original content.';
+        } else {
+            labelText = 'Original Content';
+            descText = 'This appears to be completely original content.';
         }
         
         // Animate text appearance
@@ -409,108 +441,85 @@ class AIDetectionApp {
         ctx.fillText('AI Probability', centerX, centerY + 15);
     }
 
-    createDetectionBreakdown(data) {
+    createPlagiarismGauge(canvasId, score) {
+        const canvas = document.getElementById(canvasId);
+        const ctx = canvas.getContext('2d');
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Settings
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height - 20;
+        const radius = 80;
+        const startAngle = Math.PI;
+        const endAngle = 2 * Math.PI;
+        
+        // Draw background arc
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+        ctx.lineWidth = 20;
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.stroke();
+        
+        // Draw score arc
+        const scoreAngle = startAngle + (score / 100) * Math.PI;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, startAngle, scoreAngle);
+        ctx.lineWidth = 20;
+        
+        // Color based on score
+        if (score >= 50) {
+            ctx.strokeStyle = '#ef4444'; // Red for high plagiarism
+        } else if (score >= 20) {
+            ctx.strokeStyle = '#f59e0b'; // Orange for moderate
+        } else if (score >= 10) {
+            ctx.strokeStyle = '#3b82f6'; // Blue for low
+        } else {
+            ctx.strokeStyle = '#10b981'; // Green for original
+        }
+        
+        ctx.stroke();
+        
+        // Draw percentage text
+        ctx.font = 'bold 36px Arial';
+        ctx.fillStyle = '#1f2937';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${Math.round(score)}%`, centerX, centerY - 10);
+        
+        // Draw label
+        ctx.font = '14px Arial';
+        ctx.fillStyle = '#6b7280';
+        ctx.fillText('Similarity Score', centerX, centerY + 15);
+    }
+
+    displayBasicAIFindings(data) {
+        const findingsEl = document.getElementById('basicAIFindings');
         let html = '';
-        
-        // Pattern Analysis
-        if (data.pattern_analysis) {
-            const score = data.pattern_analysis.ai_patterns_score || 0;
-            html += this.createDetectionFactor(
-                'Pattern Analysis',
-                score,
-                'Detected AI writing patterns and phrases',
-                'brain'
-            );
-        }
-        
-        // Perplexity Analysis
-        if (data.perplexity_analysis) {
-            const score = data.perplexity_analysis.ai_probability || 0;
-            html += this.createDetectionFactor(
-                'Perplexity Analysis',
-                score,
-                'Text predictability and complexity metrics',
-                'chart-area'
-            );
-        }
-        
-        // Statistical Analysis
-        if (data.statistical_analysis) {
-            const score = data.statistical_analysis.ai_probability || 0;
-            html += this.createDetectionFactor(
-                'Statistical Analysis',
-                score,
-                'Word distribution and sentence patterns',
-                'calculator'
-            );
-        }
-        
-        // Copyleaks (if available)
-        if (data.copyleaks_analysis) {
-            const score = data.copyleaks_analysis.ai_probability || 0;
-            html += this.createDetectionFactor(
-                'Copyleaks AI Detection',
-                score,
-                'Enterprise-grade AI detection algorithm',
-                'shield-alt'
-            );
-        }
-        
-        return html;
-    }
-
-    createDetectionFactor(name, score, description, icon) {
-        const fillColor = this.getScoreColor(score);
-        
-        return `
-            <div class="trust-factor">
-                <div class="factor-header">
-                    <div class="factor-info">
-                        <i class="fas fa-${icon}"></i>
-                        <span>${name}</span>
-                    </div>
-                    <span class="factor-score" style="color: ${fillColor}">${score}%</span>
-                </div>
-                <div class="factor-bar">
-                    <div class="factor-fill" style="width: ${score}%; background: ${fillColor}"></div>
-                </div>
-                <p class="factor-description">${description}</p>
-            </div>
-        `;
-    }
-
-    getScoreColor(score) {
-        if (score >= 70) return '#ef4444';
-        if (score >= 50) return '#f59e0b';
-        if (score >= 30) return '#3b82f6';
-        return '#10b981';
-    }
-
-    createIndicatorsSummary(data) {
-        const summaryEl = document.getElementById('indicatorsSummary');
-        let html = '<ul>';
         
         // AI probability summary
         const aiProb = data.ai_probability || 50;
         if (aiProb >= 70) {
-            html += '<li><i class="fas fa-exclamation-circle text-danger"></i> <strong>High AI probability:</strong> Multiple strong indicators of AI generation detected.</li>';
+            html += '<p><strong>High AI probability detected.</strong> This text shows multiple strong indicators of AI generation.</p>';
         } else if (aiProb >= 50) {
-            html += '<li><i class="fas fa-exclamation-triangle text-warning"></i> <strong>Moderate AI probability:</strong> Several AI patterns found, suggesting AI involvement.</li>';
+            html += '<p><strong>Moderate AI probability.</strong> Several AI patterns were found, suggesting possible AI involvement.</p>';
         } else {
-            html += '<li><i class="fas fa-check-circle text-success"></i> <strong>Low AI probability:</strong> Content appears predominantly human-created.</li>';
+            html += '<p><strong>Low AI probability.</strong> This content appears to be predominantly human-written.</p>';
         }
+        
+        html += '<ul>';
         
         // Pattern findings
         if (data.pattern_analysis?.detected_patterns?.length > 0) {
             const patternCount = data.pattern_analysis.detected_patterns.length;
-            html += `<li><i class="fas fa-brain text-info"></i> Detected <strong>${patternCount} AI writing patterns</strong> including formal transitions and common AI phrases.</li>`;
+            html += `<li><i class="fas fa-brain text-info"></i> <strong>${patternCount} AI writing patterns detected</strong>, including formal transitions and common AI phrases.</li>`;
         }
         
         // Perplexity findings
         if (data.perplexity_analysis) {
             const perplexity = data.perplexity_analysis.perplexity || 0;
             if (perplexity < 50) {
-                html += '<li><i class="fas fa-chart-line text-warning"></i> <strong>Low text perplexity:</strong> Unusually predictable text structure typical of AI.</li>';
+                html += '<li><i class="fas fa-chart-line text-warning"></i> <strong>Low text perplexity</strong> indicates unusually predictable text structure.</li>';
             }
         }
         
@@ -518,12 +527,46 @@ class AIDetectionApp {
         if (data.statistical_analysis?.vocabulary_diversity) {
             const diversity = data.statistical_analysis.vocabulary_diversity;
             if (diversity < 0.3) {
-                html += '<li><i class="fas fa-calculator text-warning"></i> <strong>Limited vocabulary diversity:</strong> Repetitive word usage patterns detected.</li>';
+                html += '<li><i class="fas fa-calculator text-warning"></i> <strong>Limited vocabulary diversity</strong> with repetitive word usage patterns.</li>';
             }
         }
         
+        // General advice
+        if (aiProb >= 50) {
+            html += '<li><i class="fas fa-lightbulb text-primary"></i> <strong>Recommendation:</strong> Review the text for AI-generated sections and consider rewriting for authenticity.</li>';
+        } else {
+            html += '<li><i class="fas fa-check-circle text-success"></i> <strong>Good news:</strong> Your text appears largely original with natural human writing characteristics.</li>';
+        }
+        
         html += '</ul>';
-        summaryEl.innerHTML = html;
+        
+        findingsEl.innerHTML = html;
+    }
+
+    displayPlagiarizedSections(flaggedPassages) {
+        const detailsCard = document.getElementById('plagiarismDetailsCard');
+        const sectionsEl = document.getElementById('plagiarizedSections');
+        
+        detailsCard.style.display = 'block';
+        
+        let html = '';
+        flaggedPassages.forEach((passage, index) => {
+            html += `
+                <div class="plagiarized-item">
+                    <div class="plagiarized-text">
+                        "${passage.text}"
+                    </div>
+                    <div class="plagiarized-source">
+                        <i class="fas fa-link"></i> 
+                        <strong>Source:</strong> 
+                        <a href="${passage.source_url}" target="_blank">${passage.source_title || passage.source_url}</a>
+                        <span class="similarity-badge">${passage.similarity}% match</span>
+                    </div>
+                </div>
+            `;
+        });
+        
+        sectionsEl.innerHTML = html;
     }
 
     calculateConfidence(data) {
@@ -566,11 +609,11 @@ class AIDetectionApp {
         // Hide CTA
         document.getElementById('premiumCTA').style.display = 'none';
         
-        // Show premium analysis
-        this.displayPremiumAnalysis(this.currentAnalysis);
+        // Re-analyze with premium features
+        this.analyzeContent();
     }
 
-    displayPremiumAnalysis(data) {
+    displayPremiumAIAnalysis(data) {
         const premiumSection = document.getElementById('premiumAnalysis');
         premiumSection.style.display = 'block';
         
@@ -606,14 +649,9 @@ class AIDetectionApp {
             cards.push(this.createModelDetectionCard(data));
         }
         
-        // Forensics Card (for images)
-        if (data.forensics_analysis) {
-            cards.push(this.createForensicsCard(data));
-        }
-        
-        // Detection Breakdown Card
-        if (data.detection_breakdown) {
-            cards.push(this.createBreakdownCard(data));
+        // Section-by-Section Analysis
+        if (data.section_analysis) {
+            cards.push(this.createSectionAnalysisCard(data));
         }
         
         // Add all cards with staggered animation
@@ -630,6 +668,40 @@ class AIDetectionApp {
                 block: 'start' 
             });
         }, 300);
+    }
+
+    displayPremiumPlagiarismAnalysis(data) {
+        const premiumSection = document.getElementById('premiumAnalysis');
+        premiumSection.style.display = 'block';
+        
+        // Clear previous content
+        const grid = document.getElementById('analysisGrid');
+        grid.innerHTML = '';
+        
+        // Create plagiarism-specific cards
+        const cards = [];
+        
+        // Source breakdown
+        if (data.source_breakdown) {
+            cards.push(this.createSourceBreakdownCard(data));
+        }
+        
+        // Detailed matches
+        if (data.detailed_matches) {
+            cards.push(this.createDetailedMatchesCard(data));
+        }
+        
+        // Paraphrase detection
+        if (data.paraphrase_detection) {
+            cards.push(this.createParaphraseCard(data));
+        }
+        
+        // Add all cards
+        cards.forEach((cardHtml, index) => {
+            setTimeout(() => {
+                grid.innerHTML += cardHtml;
+            }, index * 100);
+        });
     }
 
     createPatternAnalysisCard(data) {
@@ -814,70 +886,26 @@ class AIDetectionApp {
         `;
     }
 
-    createForensicsCard(data) {
-        const forensics = data.forensics_analysis || {};
+    createSectionAnalysisCard(data) {
+        const sections = data.section_analysis || [];
         
         return `
             <div class="analysis-card">
                 <div class="card-header">
-                    <h3><i class="fas fa-microscope"></i> Image Forensics</h3>
-                    <span class="card-score ${this.getScoreClass(forensics.ai_probability || 0)}">${forensics.ai_probability || 0}%</span>
+                    <h3><i class="fas fa-align-left"></i> Section-by-Section Analysis</h3>
                 </div>
                 <div class="card-content">
-                    <div class="forensics-results">
-                        ${forensics.artifacts_detected ? `
-                            <div class="artifacts-found">
-                                <h5>AI Generation Artifacts:</h5>
-                                <ul>
-                                    ${forensics.artifacts_detected.map(artifact => 
-                                        `<li><i class="fas fa-search"></i> ${artifact}</li>`
-                                    ).join('')}
-                                </ul>
-                            </div>
-                        ` : ''}
-                        ${forensics.metadata_analysis ? `
-                            <div class="metadata-info">
-                                <h5>Metadata Analysis:</h5>
-                                <p>${forensics.metadata_analysis}</p>
-                            </div>
-                        ` : ''}
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    createBreakdownCard(data) {
-        const breakdown = data.detection_breakdown || {};
-        
-        return `
-            <div class="analysis-card">
-                <div class="card-header">
-                    <h3><i class="fas fa-chart-pie"></i> Detection Breakdown</h3>
-                </div>
-                <div class="card-content">
-                    ${breakdown.detection_methods ? `
-                        <div class="method-weights">
-                            <h5>Method Contributions:</h5>
-                            ${breakdown.detection_methods.map(method => `
-                                <div class="method-item">
-                                    <span class="method-name">${method.method}</span>
-                                    <span class="method-score">${method.score}%</span>
-                                    <span class="method-weight">(${method.weight} weight)</span>
+                    <div class="section-analysis">
+                        ${sections.map((section, index) => `
+                            <div class="section-item">
+                                <h5>Section ${index + 1}</h5>
+                                <p class="section-text">"${section.text.substring(0, 100)}..."</p>
+                                <div class="section-score">
+                                    AI Probability: <span class="${this.getScoreClass(section.ai_probability)}">${section.ai_probability}%</span>
                                 </div>
-                            `).join('')}
-                        </div>
-                    ` : ''}
-                    ${breakdown.confidence_factors ? `
-                        <div class="confidence-factors">
-                            <h5>Confidence Factors:</h5>
-                            <ul>
-                                ${breakdown.confidence_factors.map(factor => 
-                                    `<li>${factor}</li>`
-                                ).join('')}
-                            </ul>
-                        </div>
-                    ` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
                 </div>
             </div>
         `;
@@ -920,7 +948,10 @@ class AIDetectionApp {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(this.currentAnalysis)
+                body: JSON.stringify({
+                    ...this.currentAnalysis,
+                    analysis_type: this.analysisType
+                })
             });
             
             if (!response.ok) throw new Error('PDF generation failed');
@@ -930,7 +961,7 @@ class AIDetectionApp {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `ai-detection-report-${Date.now()}.pdf`;
+            a.download = `${this.analysisType}-detection-report-${Date.now()}.pdf`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
@@ -947,12 +978,17 @@ class AIDetectionApp {
     shareAnalysis() {
         if (!this.currentAnalysis) return;
         
-        const aiProb = this.currentAnalysis.ai_probability || 50;
-        const text = `AI Detection Result: ${aiProb}% probability of AI generation. Analyzed with 5+ detection methods.`;
+        const score = this.analysisType === 'plagiarism' 
+            ? this.currentAnalysis.plagiarism_score 
+            : this.currentAnalysis.ai_probability;
+            
+        const text = this.analysisType === 'plagiarism'
+            ? `Plagiarism Check Result: ${score}% similarity found.`
+            : `AI Detection Result: ${score}% probability of AI generation.`;
         
         if (navigator.share) {
             navigator.share({
-                title: 'AI Detection Analysis',
+                title: `${this.analysisType === 'plagiarism' ? 'Plagiarism' : 'AI'} Detection Analysis`,
                 text: text,
                 url: window.location.href
             }).catch(err => console.log('Share cancelled'));
@@ -976,25 +1012,15 @@ Education is another domain experiencing a profound AI-driven transformation. Pe
 
 In conclusion, artificial intelligence continues to revolutionize various sectors, offering unprecedented opportunities for innovation and efficiency. As these technologies evolve, it is crucial to consider both their immense potential benefits and the ethical considerations they raise. The future undoubtedly holds even more transformative applications of AI across all aspects of human endeavor.`;
         
-        // Switch to text tab
-        this.currentTab = 'text';
-        window.switchTab('text');
+        // Update character count
+        this.updateCharCount();
         
-        // Auto-analyze
+        // Auto-analyze after a short delay
         setTimeout(() => this.analyzeContent(), 500);
     }
 
     showPricing() {
-        alert('Premium features coming soon! Get advanced AI model detection, Copyleaks integration, and detailed PDF reports.');
-    }
-
-    isValidUrl(url) {
-        try {
-            new URL(url);
-            return true;
-        } catch {
-            return false;
-        }
+        alert('Premium features coming soon! Get detailed AI model detection, section-by-section analysis, plagiarism source breakdown, and PDF reports.');
     }
 
     showError(message) {
@@ -1013,18 +1039,12 @@ In conclusion, artificial intelligence continues to revolutionize various sector
     }
 }
 
-// Add shake animation
-const shakeStyle = document.createElement('style');
-shakeStyle.innerHTML = `
-    @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        25% { transform: translateX(-10px); }
-        75% { transform: translateX(10px); }
-    }
-    
-    .drag-over {
-        border-color: var(--primary) !important;
-        background: rgba(124, 58, 237, 0.1) !important;
+// Add additional styles for new elements
+const additionalStyles = document.createElement('style');
+additionalStyles.innerHTML = `
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
     }
     
     .metric-grid {
@@ -1058,12 +1078,6 @@ shakeStyle.innerHTML = `
     .metric-item small {
         display: block;
         font-size: 0.75rem;
-        color: var(--gray);
-        margin-top: 0.25rem;
-    }
-    
-    .pattern-description {
-        font-size: 0.85rem;
         color: var(--gray);
         margin-top: 0.25rem;
     }
@@ -1127,36 +1141,31 @@ shakeStyle.innerHTML = `
         font-weight: 600;
     }
     
-    .method-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.5rem 0;
-        border-bottom: 1px solid var(--light-gray);
+    .section-item {
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border: 1px solid var(--light-gray);
+        border-radius: 8px;
     }
     
-    .method-name {
+    .section-text {
+        font-style: italic;
+        color: var(--gray);
+        margin: 0.5rem 0;
+    }
+    
+    .section-score {
         font-weight: 600;
     }
-    
-    .method-score {
-        color: var(--primary);
-        font-weight: 700;
-    }
-    
-    .method-weight {
-        font-size: 0.85rem;
-        color: var(--gray);
-    }
 `;
-document.head.appendChild(shakeStyle);
+document.head.appendChild(additionalStyles);
 
 // Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    window.aiDetectionApp = new AIDetectionApp();
+    window.textAnalysisApp = new TextAnalysisApp();
 });
 
 // Add console branding
-console.log('%cAI Detection Analyzer', 'font-size: 24px; font-weight: bold; color: #7c3aed;');
-console.log('%cAdvanced AI Content Detection', 'font-size: 14px; color: #6b7280;');
-console.log('%cPowered by 5+ Detection Methods', 'font-size: 12px; color: #06b6d4;');
+console.log('%cAI & Plagiarism Detection', 'font-size: 24px; font-weight: bold; color: #7c3aed;');
+console.log('%cAdvanced Text Analysis Tool', 'font-size: 14px; color: #6b7280;');
+console.log('%cPowered by Copyleaks & Custom Algorithms', 'font-size: 12px; color: #06b6d4;');
