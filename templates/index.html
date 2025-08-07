@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Detection Analyzer - Detect AI-Generated Content</title>
+    <title>AI & Plagiarism Detection - Analyze Text Content</title>
     
     <!-- Main Stylesheet -->
     <link rel="stylesheet" href="/static/css/styles.css">
@@ -20,10 +20,10 @@
         <div class="container">
             <div class="header-content">
                 <div class="logo-section">
-                    <i class="fas fa-robot logo-icon"></i>
+                    <i class="fas fa-shield-alt logo-icon"></i>
                     <div>
-                        <h1>AI Detection Analyzer</h1>
-                        <p class="tagline">Advanced AI Content Detection for Text & Images</p>
+                        <h1>AI & Plagiarism Detection</h1>
+                        <p class="tagline">Advanced Text Analysis for Academic & Professional Integrity</p>
                     </div>
                 </div>
                 <nav class="header-nav">
@@ -46,12 +46,12 @@
                     <button class="close-btn" onclick="hideHowItWorks()">
                         <i class="fas fa-times"></i>
                     </button>
-                    <h2 class="capabilities-title">How AI Detection Works</h2>
-                    <p class="capabilities-subtitle">We use multiple advanced techniques to detect AI-generated content</p>
+                    <h2 class="capabilities-title">How Our Detection Works</h2>
+                    <p class="capabilities-subtitle">We use multiple advanced techniques to detect AI-generated content and plagiarism</p>
                     
                     <div class="sources-grid">
                         <div class="source-category">
-                            <h3><i class="fas fa-brain"></i> Text Analysis Methods</h3>
+                            <h3><i class="fas fa-robot"></i> AI Detection Methods</h3>
                             <ul>
                                 <li><strong>Pattern Recognition</strong> - Identifies AI writing patterns</li>
                                 <li><strong>Perplexity Analysis</strong> - Measures text predictability</li>
@@ -62,13 +62,13 @@
                         </div>
                         
                         <div class="source-category">
-                            <h3><i class="fas fa-image"></i> Image Analysis Methods</h3>
+                            <h3><i class="fas fa-copy"></i> Plagiarism Detection</h3>
                             <ul>
-                                <li><strong>Pixel Pattern Analysis</strong> - Detects AI artifacts</li>
-                                <li><strong>Frequency Analysis</strong> - Examines image frequencies</li>
-                                <li><strong>Metadata Inspection</strong> - Checks generation markers</li>
-                                <li><strong>Style Consistency</strong> - Analyzes artistic patterns</li>
-                                <li><strong>Forensic Analysis</strong> - Deep image inspection</li>
+                                <li><strong>Internet Search</strong> - Billions of web pages</li>
+                                <li><strong>Academic Databases</strong> - Published papers & journals</li>
+                                <li><strong>Document Matching</strong> - Previously submitted content</li>
+                                <li><strong>Paraphrase Detection</strong> - Reworded content</li>
+                                <li><strong>Cross-Language</strong> - Translated plagiarism</li>
                             </ul>
                         </div>
                         
@@ -87,37 +87,11 @@
                             <h3><i class="fas fa-shield-alt"></i> Detection Accuracy</h3>
                             <ul>
                                 <li><strong>95%+ Accuracy</strong> - For pure AI content</li>
-                                <li><strong>90%+ Accuracy</strong> - For mixed content</li>
+                                <li><strong>99%+ Accuracy</strong> - For direct plagiarism</li>
                                 <li><strong>Cross-Validation</strong> - Multiple methods used</li>
-                                <li><strong>Model Updates</strong> - Continuously improved</li>
+                                <li><strong>Real-Time Updates</strong> - Continuously improved</li>
                                 <li><strong>False Positive Rate</strong> - Under 5%</li>
                             </ul>
-                        </div>
-                    </div>
-                    
-                    <div class="methodology-section">
-                        <h3>Our Detection Process</h3>
-                        <div class="process-steps">
-                            <div class="process-step">
-                                <span class="step-number">1</span>
-                                <h4>Content Analysis</h4>
-                                <p>Deep analysis of text patterns or image characteristics</p>
-                            </div>
-                            <div class="process-step">
-                                <span class="step-number">2</span>
-                                <h4>Multi-Method Detection</h4>
-                                <p>Apply 5+ detection methods for comprehensive analysis</p>
-                            </div>
-                            <div class="process-step">
-                                <span class="step-number">3</span>
-                                <h4>Score Calculation</h4>
-                                <p>Weighted scoring based on detection confidence</p>
-                            </div>
-                            <div class="process-step">
-                                <span class="step-number">4</span>
-                                <h4>Detailed Report</h4>
-                                <p>Comprehensive breakdown of AI indicators found</p>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -126,8 +100,8 @@
             <!-- Input Section -->
             <section class="input-section">
                 <div class="input-card">
-                    <h2 class="section-title">Detect AI-Generated Content</h2>
-                    <p class="section-subtitle">Analyze text or images for AI participation with advanced detection algorithms</p>
+                    <h2 class="section-title">Text Analysis</h2>
+                    <p class="section-subtitle">Check your text for AI generation or plagiarism</p>
                     
                     <!-- Trust Indicators -->
                     <div class="trust-indicators">
@@ -140,60 +114,50 @@
                             <span>Instant Results</span>
                         </div>
                         <div class="indicator">
-                            <i class="fas fa-microscope"></i>
-                            <span>5+ Detection Methods</span>
+                            <i class="fas fa-shield-alt"></i>
+                            <span>Academic Grade</span>
                         </div>
                     </div>
                     
-                    <div class="input-tabs">
-                        <button class="tab-btn active" data-tab="text" onclick="switchTab('text')">
-                            <i class="fas fa-file-alt"></i> Text
-                        </button>
-                        <button class="tab-btn" data-tab="image" onclick="switchTab('image')">
-                            <i class="fas fa-image"></i> Image
-                        </button>
-                        <button class="tab-btn" data-tab="url" onclick="switchTab('url')">
-                            <i class="fas fa-link"></i> URL
-                        </button>
-                    </div>
-                    
-                    <div class="tab-content" id="text-tab">
-                        <textarea id="textInput" class="text-input" 
-                                  placeholder="Paste the text you want to analyze for AI generation..."></textarea>
-                        <button class="analyze-btn full-width" onclick="analyzeContent()">
-                            <i class="fas fa-search"></i>
-                            <span>Analyze Text</span>
-                        </button>
-                    </div>
-                    
-                    <div class="tab-content" id="image-tab" style="display: none;">
-                        <div class="image-upload-area" id="imageUploadArea">
-                            <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
-                            <label for="imageInput" class="upload-label">
-                                <i class="fas fa-cloud-upload-alt"></i>
-                                <span>Click to upload image or drag & drop</span>
-                                <small>Supports JPG, PNG, WebP (Max 16MB)</small>
+                    <!-- Analysis Type Selection -->
+                    <div class="analysis-type-selection">
+                        <h3>Choose Analysis Type:</h3>
+                        <div class="analysis-options">
+                            <label class="analysis-option">
+                                <input type="radio" name="analysisType" value="ai" checked>
+                                <div class="option-card">
+                                    <i class="fas fa-robot"></i>
+                                    <span class="option-title">AI Detection</span>
+                                    <small>Check if text was AI-generated</small>
+                                </div>
                             </label>
-                            <div id="imagePreview" class="image-preview" style="display: none;">
-                                <img id="previewImg" src="" alt="Preview">
-                                <button class="remove-image" onclick="removeImage()">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </div>
+                            <label class="analysis-option">
+                                <input type="radio" name="analysisType" value="plagiarism">
+                                <div class="option-card">
+                                    <i class="fas fa-copy"></i>
+                                    <span class="option-title">Plagiarism Check</span>
+                                    <small>Find copied or unoriginal content</small>
+                                </div>
+                            </label>
                         </div>
-                        <button class="analyze-btn full-width" onclick="analyzeContent()">
-                            <i class="fas fa-search"></i>
-                            <span>Analyze Image</span>
-                        </button>
                     </div>
                     
-                    <div class="tab-content" id="url-tab" style="display: none;">
-                        <div class="input-group">
-                            <input type="url" id="urlInput" class="input-field" 
-                                   placeholder="https://example.com/article-or-image" />
-                            <button class="analyze-btn" onclick="analyzeContent()">
+                    <!-- Text Input -->
+                    <div class="text-input-section">
+                        <div class="input-header">
+                            <label for="textInput">Enter or paste your text:</label>
+                            <span class="char-count" id="charCount">0 characters</span>
+                        </div>
+                        <textarea id="textInput" class="text-input" 
+                                  placeholder="Paste the text you want to analyze..."
+                                  oninput="updateCharCount()"></textarea>
+                        <div class="input-actions">
+                            <button class="clear-btn" onclick="clearText()">
+                                <i class="fas fa-eraser"></i> Clear
+                            </button>
+                            <button class="analyze-btn" onclick="analyzeContent()" id="analyzeBtn">
                                 <i class="fas fa-search"></i>
-                                <span>Analyze</span>
+                                <span>Check for AI</span>
                             </button>
                         </div>
                     </div>
@@ -205,12 +169,12 @@
             <!-- Progress Section -->
             <section id="progressSection" class="progress-section" style="display: none;">
                 <div class="progress-card">
-                    <h3>AI Detection Analysis in Progress</h3>
-                    <div class="progress-stages">
+                    <h3 id="progressTitle">AI Detection Analysis in Progress</h3>
+                    <div class="progress-stages" id="aiProgressStages">
                         <div class="stage" data-stage="extract">
                             <i class="fas fa-file-import"></i>
                             <span>Processing</span>
-                            <small>Content extraction</small>
+                            <small>Text extraction</small>
                         </div>
                         <div class="stage" data-stage="patterns">
                             <i class="fas fa-search-plus"></i>
@@ -233,90 +197,142 @@
                             <small>Calculating</small>
                         </div>
                     </div>
+                    <div class="progress-stages" id="plagiarismProgressStages" style="display: none;">
+                        <div class="stage" data-stage="submit">
+                            <i class="fas fa-upload"></i>
+                            <span>Submitting</span>
+                            <small>Secure upload</small>
+                        </div>
+                        <div class="stage" data-stage="internet">
+                            <i class="fas fa-globe"></i>
+                            <span>Internet Search</span>
+                            <small>Checking web sources</small>
+                        </div>
+                        <div class="stage" data-stage="academic">
+                            <i class="fas fa-graduation-cap"></i>
+                            <span>Academic Check</span>
+                            <small>Scholarly databases</small>
+                        </div>
+                        <div class="stage" data-stage="similarity">
+                            <i class="fas fa-percentage"></i>
+                            <span>Similarity Analysis</span>
+                            <small>Calculating matches</small>
+                        </div>
+                        <div class="stage" data-stage="report">
+                            <i class="fas fa-file-alt"></i>
+                            <span>Report Generation</span>
+                            <small>Compiling results</small>
+                        </div>
+                    </div>
                     <div class="progress-bar">
                         <div id="progressFill" class="progress-fill"></div>
                     </div>
-                    <p class="progress-message">Running <span id="methodCount">0</span> detection methods...</p>
+                    <p class="progress-message" id="progressMessage">Running analysis...</p>
                 </div>
             </section>
 
             <!-- Results Section -->
             <section id="resultsSection" class="results-section" style="display: none;">
-                <!-- AI Detection Summary -->
-                <div class="summary-section">
-                    <!-- AI Probability Score -->
-                    <div class="trust-score-card">
-                        <div class="gauge-container">
-                            <canvas id="aiProbabilityGauge" width="200" height="120"></canvas>
+                <!-- AI Detection Results -->
+                <div id="aiResults" class="results-container">
+                    <div class="summary-section">
+                        <!-- AI Probability Score -->
+                        <div class="score-card ai-score-card">
+                            <div class="gauge-container">
+                                <canvas id="aiProbabilityGauge" width="200" height="120"></canvas>
+                            </div>
+                            <h2 id="aiLabel">Calculating...</h2>
+                            <p id="aiDescription"></p>
+                            <div class="score-context">
+                                <span class="context-item">
+                                    <i class="fas fa-info-circle"></i>
+                                    Based on <strong>5+ detection methods</strong>
+                                </span>
+                            </div>
                         </div>
-                        <h2 id="aiLabel">Calculating...</h2>
-                        <p id="aiDescription"></p>
-                        <div class="score-context">
-                            <span class="context-item">
-                                <i class="fas fa-info-circle"></i>
-                                Based on <strong>5+ detection methods</strong>
-                            </span>
+                        
+                        <!-- AI Analysis Summary -->
+                        <div class="analysis-summary-card">
+                            <h3><i class="fas fa-robot"></i> AI Detection Summary</h3>
+                            <div class="summary-content">
+                                <p id="aiSummaryText">Loading analysis summary...</p>
+                                
+                                <!-- Quick Stats -->
+                                <div class="quick-stats">
+                                    <div class="stat">
+                                        <i class="fas fa-brain"></i>
+                                        <span><strong id="patternCount">0</strong> AI patterns detected</span>
+                                    </div>
+                                    <div class="stat">
+                                        <i class="fas fa-chart-line"></i>
+                                        <span><strong id="methodsUsed">0</strong> methods applied</span>
+                                    </div>
+                                    <div class="stat">
+                                        <i class="fas fa-check-circle"></i>
+                                        <span><strong id="confidenceRate">0</strong>% confidence</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
-                    <!-- Content Analysis Summary -->
-                    <div class="article-summary-card">
-                        <h3><i class="fas fa-file-alt"></i> Content Analysis</h3>
-                        <div class="article-meta">
-                            <div class="meta-item">
-                                <i class="fas fa-file"></i>
-                                <span id="contentType">Loading...</span>
-                            </div>
-                            <div class="meta-item">
-                                <i class="fas fa-ruler"></i>
-                                <span id="contentLength">Loading...</span>
-                            </div>
-                            <div class="meta-item">
-                                <i class="fas fa-clock"></i>
-                                <span id="analysisTime">Loading...</span>
-                            </div>
-                            <div class="meta-item">
-                                <i class="fas fa-shield-alt"></i>
-                                <span id="confidenceLevel">Loading...</span>
-                            </div>
-                        </div>
-                        <div class="article-summary">
-                            <strong>Analysis Summary:</strong>
-                            <p id="analysisSummary">Loading analysis summary...</p>
-                        </div>
-                        
-                        <!-- Quick Stats -->
-                        <div class="quick-stats">
-                            <div class="stat">
-                                <i class="fas fa-brain"></i>
-                                <span><strong id="patternCount">0</strong> AI patterns detected</span>
-                            </div>
-                            <div class="stat">
-                                <i class="fas fa-chart-line"></i>
-                                <span><strong id="methodsUsed">0</strong> methods applied</span>
-                            </div>
-                            <div class="stat">
-                                <i class="fas fa-check-circle"></i>
-                                <span><strong id="accuracyRate">0</strong>% confidence</span>
-                            </div>
+                    <!-- Free Tier Results -->
+                    <div class="basic-findings-card">
+                        <h3><i class="fas fa-search"></i> Detection Overview</h3>
+                        <div id="basicAIFindings" class="basic-findings-content">
+                            <!-- Basic findings will be inserted here -->
                         </div>
                     </div>
                 </div>
-                
-                <!-- Detailed Analysis Breakdown -->
-                <div class="key-findings-card">
-                    <h3><i class="fas fa-microscope"></i> Detection Methods Breakdown</h3>
-                    <p class="findings-intro">
-                        Our AI analyzed your content using multiple advanced detection methods. 
-                        Each method contributes to the overall AI probability score.
-                    </p>
-                    <div id="detectionBreakdown" class="trust-factors-grid"></div>
+
+                <!-- Plagiarism Results -->
+                <div id="plagiarismResults" class="results-container" style="display: none;">
+                    <div class="summary-section">
+                        <!-- Plagiarism Score -->
+                        <div class="score-card plagiarism-score-card">
+                            <div class="gauge-container">
+                                <canvas id="plagiarismGauge" width="200" height="120"></canvas>
+                            </div>
+                            <h2 id="plagiarismLabel">Calculating...</h2>
+                            <p id="plagiarismDescription"></p>
+                            <div class="score-context">
+                                <span class="context-item">
+                                    <i class="fas fa-globe"></i>
+                                    Checked against billions of sources
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <!-- Plagiarism Summary -->
+                        <div class="analysis-summary-card">
+                            <h3><i class="fas fa-copy"></i> Plagiarism Check Summary</h3>
+                            <div class="summary-content">
+                                <p id="plagiarismSummaryText">Loading analysis summary...</p>
+                                
+                                <!-- Quick Stats -->
+                                <div class="quick-stats">
+                                    <div class="stat">
+                                        <i class="fas fa-percentage"></i>
+                                        <span><strong id="similarityPercent">0</strong>% similarity found</span>
+                                    </div>
+                                    <div class="stat">
+                                        <i class="fas fa-link"></i>
+                                        <span><strong id="sourcesFound">0</strong> matching sources</span>
+                                    </div>
+                                    <div class="stat">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        <span><strong id="flaggedPassages">0</strong> flagged passages</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     
-                    <!-- AI Indicators Summary -->
-                    <div class="analysis-summary">
-                        <h4>Key AI Indicators Found</h4>
-                        <div id="indicatorsSummary">
-                            <!-- Dynamic content based on analysis -->
+                    <!-- Plagiarized Content List -->
+                    <div class="plagiarism-details-card" id="plagiarismDetailsCard" style="display: none;">
+                        <h3><i class="fas fa-exclamation-triangle"></i> Potentially Plagiarized Content</h3>
+                        <div id="plagiarizedSections" class="plagiarized-sections">
+                            <!-- Plagiarized sections will be listed here -->
                         </div>
                     </div>
                 </div>
@@ -325,55 +341,40 @@
                 <div class="premium-cta" id="premiumCTA">
                     <div class="premium-content">
                         <div class="premium-header">
-                            <h2><i class="fas fa-crown"></i> Unlock Complete AI Detection Analysis</h2>
-                            <p>Get detailed insights with our premium detection features</p>
-                        </div>
-                        
-                        <div class="premium-preview">
-                            <div class="preview-item">
-                                <i class="fas fa-fingerprint text-info"></i>
-                                <span>AI model fingerprinting detected</span>
-                            </div>
-                            <div class="preview-item">
-                                <i class="fas fa-microscope text-success"></i>
-                                <span>Advanced forensic analysis available</span>
-                            </div>
-                            <div class="preview-item">
-                                <i class="fas fa-shield-alt text-warning"></i>
-                                <span>Enterprise-grade detection ready</span>
-                            </div>
+                            <h2><i class="fas fa-crown"></i> Unlock Complete Analysis</h2>
+                            <p>Get detailed insights and comprehensive reports</p>
                         </div>
                         
                         <div class="premium-features-grid">
                             <div class="premium-feature">
                                 <i class="fas fa-brain"></i>
+                                <h4>Detailed AI Analysis</h4>
+                                <p>Section-by-section AI detection breakdown</p>
+                            </div>
+                            <div class="premium-feature">
+                                <i class="fas fa-fingerprint"></i>
                                 <h4>AI Model Detection</h4>
-                                <p>Identify GPT-4, Claude, Gemini, DALL-E, Midjourney</p>
+                                <p>Identify GPT-4, Claude, Gemini signatures</p>
+                            </div>
+                            <div class="premium-feature">
+                                <i class="fas fa-microscope"></i>
+                                <h4>Deep Pattern Analysis</h4>
+                                <p>Advanced linguistic fingerprinting</p>
+                            </div>
+                            <div class="premium-feature">
+                                <i class="fas fa-file-pdf"></i>
+                                <h4>PDF Reports</h4>
+                                <p>Professional analysis documents</p>
+                            </div>
+                            <div class="premium-feature">
+                                <i class="fas fa-highlighter"></i>
+                                <h4>Highlighted Text</h4>
+                                <p>See exactly which parts are AI/plagiarized</p>
                             </div>
                             <div class="premium-feature">
                                 <i class="fas fa-shield-alt"></i>
                                 <h4>Copyleaks Integration</h4>
-                                <p>Enterprise-grade AI detection with 99.1% accuracy</p>
-                            </div>
-                            <div class="premium-feature">
-                                <i class="fas fa-microscope"></i>
-                                <h4>Deep Forensic Analysis</h4>
-                                <p>Pixel-level image analysis and text fingerprinting</p>
-                            </div>
-                            <div class="premium-feature">
-                                <i class="fas fa-chart-line"></i>
-                                <h4>Advanced Statistics</h4>
-                                <p>Perplexity, burstiness, and linguistic patterns</p>
-                            </div>
-                            <div class="premium-feature">
-                                <i class="fas fa-history"></i>
-                                <h4>Version Detection</h4>
-                                <p>Identify specific AI model versions used</p>
-                            </div>
-                            <div class="premium-feature">
-                                <i class="fas fa-file-pdf"></i>
-                                <h4>Detailed PDF Report</h4>
-                                <p>Professional analysis document with evidence</p>
+                                <p>Enterprise-grade accuracy</p>
                             </div>
                         </div>
                         
@@ -387,10 +388,10 @@
                     </div>
                 </div>
 
-                <!-- Premium Analysis Grid -->
+                <!-- Premium Analysis -->
                 <div id="premiumAnalysis" class="premium-analysis" style="display: none;">
                     <div class="analysis-header">
-                        <h2>Complete AI Detection Report</h2>
+                        <h2>Complete Analysis Report</h2>
                         <div class="analysis-actions">
                             <button class="action-btn" onclick="downloadPDF()">
                                 <i class="fas fa-download"></i> Download PDF
@@ -402,7 +403,7 @@
                     </div>
                     
                     <div id="analysisGrid" class="analysis-grid">
-                        <!-- Analysis cards will be dynamically inserted here -->
+                        <!-- Premium analysis cards will be dynamically inserted here -->
                     </div>
                 </div>
             </section>
