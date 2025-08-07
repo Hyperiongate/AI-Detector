@@ -1,6 +1,6 @@
 """
-AI Detection Analyzer API
-Detects AI participation in text and image creation
+AI & Plagiarism Detection API
+Detects AI-generated content and checks for plagiarism in text
 """
 import os
 import logging
@@ -11,10 +11,10 @@ from typing import Dict, Any, Optional
 import base64
 from io import BytesIO
 
-# Import AI detection services
+# Import detection services
 from services.ai_detector import AIDetector
 from services.text_ai_analyzer import TextAIAnalyzer
-from services.image_ai_analyzer import ImageAIAnalyzer
+from services.plagiarism_detector import PlagiarismDetector
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -28,19 +28,19 @@ CORS(app)
 
 # Configuration
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB max for text
 
 # Initialize services
 try:
     ai_detector = AIDetector()
     text_analyzer = TextAIAnalyzer()
-    image_analyzer = ImageAIAnalyzer()
-    logger.info("AI detection services initialized successfully")
+    plagiarism_detector = PlagiarismDetector()
+    logger.info("Detection services initialized successfully")
 except Exception as e:
     logger.error(f"Error initializing services: {e}")
     ai_detector = None
     text_analyzer = None
-    image_analyzer = None
+    plagiarism_detector = None
 
 @app.route('/')
 def index():
@@ -56,37 +56,21 @@ def health():
         'services': {
             'ai_detector': ai_detector is not None,
             'text_analyzer': text_analyzer is not None,
-            'image_analyzer': image_analyzer is not None
+            'plagiarism_detector': plagiarism_detector is not None
         }
     })
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze():
     """
-    Main analysis endpoint for AI detection
+    Main analysis endpoint for AI detection and plagiarism checking
     Accepts: 
-    - Text: { "text": "content to analyze..." }
-    - Image: { "image": "base64_encoded_image_data", "image_type": "image/jpeg" }
-    - URL: { "url": "https://..." }
-    Returns: Comprehensive AI detection analysis
+    - Text: { "text": "content to analyze...", "analysis_type": "ai" or "plagiarism" }
+    Returns: Comprehensive analysis results
     """
     try:
         # Get request data
-        if request.content_type.startswith('multipart/form-data'):
-            # Handle file upload
-            data = {}
-            if 'text' in request.form:
-                data['text'] = request.form['text']
-            if 'image' in request.files:
-                image_file = request.files['image']
-                if image_file:
-                    # Convert to base64
-                    image_data = image_file.read()
-                    data['image'] = base64.b64encode(image_data).decode('utf-8')
-                    data['image_type'] = image_file.content_type
-        else:
-            # Handle JSON request
-            data = request.get_json()
+        data = request.get_json()
             
         if not data:
             return jsonify({
@@ -94,42 +78,52 @@ def analyze():
                 'error': 'No data provided'
             }), 400
         
-        # Determine content type
+        # Get parameters
         text = data.get('text')
-        image = data.get('image')
-        image_type = data.get('image_type', 'image/jpeg')
-        url = data.get('url')
+        analysis_type = data.get('analysis_type', 'ai')
+        is_pro = data.get('is_pro', False)
+        
+        # Validate input
+        if not text:
+            return jsonify({
+                'success': False,
+                'error': 'No text provided'
+            }), 400
+            
+        if len(text) < 50:
+            return jsonify({
+                'success': False,
+                'error': 'Text must be at least 50 characters long'
+            }), 400
+            
+        if len(text) > 50000:
+            return jsonify({
+                'success': False,
+                'error': 'Text must be less than 50,000 characters'
+            }), 400
         
         # Check if services are available
-        if not ai_detector:
+        if analysis_type == 'ai' and not ai_detector:
             return jsonify({
                 'success': False,
                 'error': 'AI detection service is temporarily unavailable'
             }), 503
-        
-        # Determine if user is pro
-        is_pro = data.get('is_pro', False)
-        
-        # Perform analysis based on content type
-        result = None
-        
-        if text:
-            logger.info("Analyzing text content for AI participation")
-            result = ai_detector.analyze_text(text, is_pro=is_pro)
             
-        elif image:
-            logger.info("Analyzing image for AI generation")
-            result = ai_detector.analyze_image(image, image_type=image_type, is_pro=is_pro)
-            
-        elif url:
-            logger.info(f"Analyzing content from URL: {url}")
-            result = ai_detector.analyze_url(url, is_pro=is_pro)
-            
-        else:
+        if analysis_type == 'plagiarism' and not plagiarism_detector:
             return jsonify({
                 'success': False,
-                'error': 'No content provided. Please provide text, image, or URL.'
-            }), 400
+                'error': 'Plagiarism detection service is temporarily unavailable'
+            }), 503
+        
+        # Perform analysis
+        result = None
+        
+        if analysis_type == 'plagiarism':
+            logger.info("Performing plagiarism check")
+            result = plagiarism_detector.check_plagiarism(text, is_pro=is_pro)
+        else:  # Default to AI detection
+            logger.info("Performing AI detection analysis")
+            result = ai_detector.analyze_text(text, is_pro=is_pro)
         
         # Check if analysis was successful
         if not result.get('success', False):
@@ -140,7 +134,7 @@ def analyze():
                 'error': error_msg
             }), 400
         
-        logger.info(f"Analysis completed. AI probability: {result.get('ai_probability', 'N/A')}%")
+        logger.info(f"Analysis completed. Type: {analysis_type}")
         return jsonify(result)
         
     except Exception as e:
@@ -150,104 +144,33 @@ def analyze():
             'error': f'Analysis failed: {str(e)}'
         }), 500
 
-@app.route('/api/extract-text', methods=['POST'])
-def extract_text():
+@app.route('/api/generate-pdf', methods=['POST'])
+def generate_pdf():
     """
-    Extract text from URL for analysis
-    Accepts: { "url": "https://..." }
-    Returns: Extracted text content
+    Generate PDF report for analysis results
     """
     try:
         data = request.get_json()
-        if not data or not data.get('url'):
+        if not data:
             return jsonify({
                 'success': False,
-                'error': 'URL is required'
+                'error': 'No data provided'
             }), 400
         
-        url = data.get('url')
-        logger.info(f"Extracting text from: {url}")
+        analysis_type = data.get('analysis_type', 'ai')
         
-        if not text_analyzer:
-            return jsonify({
-                'success': False,
-                'error': 'Text extraction service is temporarily unavailable'
-            }), 503
-        
-        # Extract text
-        result = text_analyzer.extract_from_url(url)
-        
-        if not result.get('success', False):
-            error_msg = result.get('error', 'Extraction failed')
-            logger.error(f"Extraction failed: {error_msg}")
-            return jsonify({
-                'success': False,
-                'error': error_msg
-            }), 400
-        
-        return jsonify(result)
-        
-    except Exception as e:
-        logger.error(f"Extraction error: {str(e)}", exc_info=True)
+        # For now, return a simple message
+        # In production, you would use a PDF library like ReportLab
         return jsonify({
             'success': False,
-            'error': f'Extraction failed: {str(e)}'
-        }), 500
-
-@app.route('/api/batch-analyze', methods=['POST'])
-def batch_analyze():
-    """
-    Batch analysis endpoint for multiple items
-    Pro feature only
-    """
-    try:
-        data = request.get_json()
-        if not data or not data.get('items'):
-            return jsonify({
-                'success': False,
-                'error': 'Items array is required'
-            }), 400
-        
-        # Check if pro
-        if not data.get('is_pro', False):
-            return jsonify({
-                'success': False,
-                'error': 'Batch analysis is a premium feature'
-            }), 403
-        
-        items = data.get('items', [])
-        if len(items) > 10:
-            return jsonify({
-                'success': False,
-                'error': 'Maximum 10 items per batch'
-            }), 400
-        
-        # Process batch
-        results = []
-        for item in items:
-            if item.get('text'):
-                result = ai_detector.analyze_text(item['text'], is_pro=True)
-            elif item.get('image'):
-                result = ai_detector.analyze_image(
-                    item['image'], 
-                    item.get('image_type', 'image/jpeg'), 
-                    is_pro=True
-                )
-            else:
-                result = {'success': False, 'error': 'Invalid item type'}
-            
-            results.append(result)
-        
-        return jsonify({
-            'success': True,
-            'results': results
-        })
+            'error': 'PDF generation is not yet implemented'
+        }), 501
         
     except Exception as e:
-        logger.error(f"Batch analysis error: {str(e)}", exc_info=True)
+        logger.error(f"PDF generation error: {str(e)}", exc_info=True)
         return jsonify({
             'success': False,
-            'error': f'Batch analysis failed: {str(e)}'
+            'error': f'PDF generation failed: {str(e)}'
         }), 500
 
 # Serve static files explicitly
@@ -270,7 +193,7 @@ def request_entity_too_large(error):
     """Handle file too large errors"""
     return jsonify({
         'success': False,
-        'error': 'File too large. Maximum size is 16MB.'
+        'error': 'Content too large. Maximum size is 5MB.'
     }), 413
 
 @app.errorhandler(500)
