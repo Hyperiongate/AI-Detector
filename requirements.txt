@@ -1,18 +1,6 @@
-# Core Flask dependencies
 Flask==2.3.3
 flask-cors==4.0.0
-gunicorn==21.2.0
-
-# Web scraping and requests
 requests==2.31.0
 beautifulsoup4==4.12.2
-
-# Environment and configuration
 python-dotenv==1.0.0
-
-# Image processing - using latest version compatible with Python 3.13
-Pillow==11.0.0
-numpy==1.26.2
-
-# For better date handling
-python-dateutil==2.8.2
+gunicorn==21.2.0
