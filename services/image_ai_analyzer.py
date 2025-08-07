@@ -1215,6 +1215,18 @@ class ImageAIAnalyzer:
         
         return min(score, 98)
     
+    def _summarize_artifacts(self, ela: Dict, compression: Dict, 
+                           color: Dict, edge: Dict) -> List[str]:
+        """Summarize all detected artifacts"""
+        artifacts = []
+        
+        artifacts.extend(ela.get('anomalies', []))
+        artifacts.extend(compression.get('ai_artifacts', []))
+        artifacts.extend(color.get('anomalies', []))
+        artifacts.extend(edge.get('inconsistencies', []))
+        
+        return artifacts[:5]  # Return top 5
+    
     def _create_image_summary(self, ai_probability: float, artifacts: Dict) -> str:
         """Create summary for image analysis"""
         artifact_count = artifacts.get('artifact_count', 0)
@@ -1590,3 +1602,61 @@ class ImageAIAnalyzer:
             return False
             
         except Exception as e:
+            logger.error(f"SD noise check error: {e}")
+            return False
+    
+    def _check_lighting_consistency(self, image: Any) -> bool:
+        """Check for unrealistic lighting consistency"""
+        try:
+            # Convert to LAB color space for better lighting analysis
+            if image.mode != 'RGB':
+                image = image.convert('RGB')
+            
+            # Simple lighting analysis using brightness variations
+            gray = np.array(image.convert('L'))
+            
+            # Divide image into regions
+            h, w = gray.shape
+            region_size = min(h, w) // 4
+            
+            if region_size < 20:
+                return False
+            
+            # Check lighting consistency across regions
+            brightness_values = []
+            
+            for i in range(0, h - region_size, region_size):
+                for j in range(0, w - region_size, region_size):
+                    region = gray[i:i+region_size, j:j+region_size]
+                    brightness_values.append(np.mean(region))
+            
+            if brightness_values:
+                # Unrealistic if lighting is too consistent
+                brightness_std = np.std(brightness_values)
+                if brightness_std < 10:
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Lighting check error: {e}")
+            return False
+    
+    def _calculate_saturation(self, img_array: np.ndarray) -> float:
+        """Calculate average saturation of the image"""
+        try:
+            # Convert RGB to HSV-like calculation
+            r, g, b = img_array[:,:,0]/255.0, img_array[:,:,1]/255.0, img_array[:,:,2]/255.0
+            
+            # Calculate max and min for each pixel
+            max_rgb = np.maximum(np.maximum(r, g), b)
+            min_rgb = np.minimum(np.minimum(r, g), b)
+            
+            # Saturation = (max - min) / max (simplified)
+            saturation = np.where(max_rgb > 0, (max_rgb - min_rgb) / max_rgb, 0)
+            
+            return np.mean(saturation)
+            
+        except Exception as e:
+            logger.error(f"Saturation calculation error: {e}")
+            return 0.5
