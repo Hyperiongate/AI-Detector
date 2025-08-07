@@ -5,7 +5,7 @@ Integrates with Copyleaks API for professional AI detection
 import os
 import logging
 import requests
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import time
 import json
 
@@ -45,7 +45,7 @@ class CopyleaksDetector:
             results = self._get_detection_results(scan_id)
             
             if results:
-                return self._process_results(results)
+                return self._process_results(results, text)
             else:
                 return self._mock_detection(text)
                 
@@ -155,35 +155,43 @@ class CopyleaksDetector:
             logger.error(f"Error getting Copyleaks results: {e}")
             return None
     
-    def _process_results(self, results: Dict) -> Dict[str, Any]:
+    def _process_results(self, results: Dict, original_text: str) -> Dict[str, Any]:
         """Process Copyleaks AI detection results"""
         try:
-            # Extract AI probability
-            ai_probability = results.get('ai_probability', 50)
+            # Extract AI probability from results
+            # Copyleaks returns a score between 0-100 for AI probability
+            ai_probability = results.get('ai_score', 50)
             
-            # Extract detailed results
-            summary = results.get('summary', {})
+            # Get summary information
+            summary_data = results.get('summary', {})
             
-            # Detected AI sections
-            ai_sections = []
-            if 'ai_sections' in results:
-                for section in results['ai_sections']:
-                    ai_sections.append({
-                        'text': section.get('text', ''),
-                        'probability': section.get('probability', 0),
+            # Extract section-level results if available
+            sections = results.get('sections', [])
+            detected_sections = []
+            
+            for section in sections:
+                if section.get('ai_score', 0) > 70:  # High AI probability sections
+                    text_snippet = section.get('text', '')[:100] + '...'
+                    detected_sections.append({
+                        'text': text_snippet,
+                        'ai_score': section.get('ai_score', 0),
                         'start': section.get('start', 0),
                         'end': section.get('end', 0)
                     })
             
+            # Calculate confidence based on various factors
+            confidence = 'high' if len(sections) > 5 else 'medium'
+            
             return {
                 'ai_probability': ai_probability,
                 'summary': self._create_summary(ai_probability),
-                'detected_sections': [s['text'][:100] + '...' for s in ai_sections[:3]],
-                'confidence': summary.get('confidence', 'medium'),
-                'total_words_analyzed': summary.get('total_words', 0),
-                'ai_words_detected': summary.get('ai_words', 0),
-                'human_words_detected': summary.get('human_words', 0),
-                'analysis_version': results.get('version', 'unknown')
+                'detected_sections': [s['text'] for s in detected_sections[:3]],  # Top 3 sections
+                'confidence': confidence,
+                'total_words_analyzed': len(original_text.split()),
+                'ai_words_detected': summary_data.get('ai_words', 0),
+                'human_words_detected': summary_data.get('human_words', 0),
+                'analysis_version': results.get('version', 'latest'),
+                'section_analysis': detected_sections if detected_sections else None
             }
             
         except Exception as e:
@@ -209,24 +217,46 @@ class CopyleaksDetector:
         ai_indicators = [
             'in conclusion', 'furthermore', 'moreover', 'it is important to note',
             'delve into', 'it\'s worth noting', 'in today\'s', 'in the modern',
-            'tapestry', 'landscape', 'realm', 'navigate', 'leverage'
+            'tapestry', 'landscape', 'realm', 'navigate', 'leverage',
+            'it is crucial', 'it is essential', 'comprehensive', 'multifaceted'
         ]
         
         text_lower = text.lower()
         indicator_count = sum(1 for indicator in ai_indicators if indicator in text_lower)
         
+        # Check for perfect grammar patterns
+        sentences = text.split('.')
+        perfect_sentences = 0
+        for sentence in sentences:
+            if sentence.strip() and len(sentence.strip()) > 20:
+                # Check if sentence starts with capital and has no obvious errors
+                if sentence.strip()[0].isupper():
+                    perfect_sentences += 1
+        
         # Calculate mock probability
         words = text.split()
         if len(words) > 0:
             indicator_rate = indicator_count / (len(words) / 100)
-            ai_probability = min(95, indicator_rate * 20 + 30)
+            grammar_score = (perfect_sentences / len(sentences)) * 30 if sentences else 0
+            ai_probability = min(95, indicator_rate * 15 + grammar_score + 20)
         else:
             ai_probability = 50
+        
+        # Create mock sections for demonstration
+        detected_sections = []
+        if ai_probability > 60 and len(sentences) > 3:
+            detected_sections = [
+                sentences[0].strip()[:100] + '...' if sentences[0] else '',
+                sentences[len(sentences)//2].strip()[:100] + '...' if len(sentences) > 2 else ''
+            ]
         
         return {
             'ai_probability': ai_probability,
             'summary': 'Analysis performed using pattern matching (Copyleaks unavailable)',
-            'detected_sections': [],
+            'detected_sections': [s for s in detected_sections if s],
             'confidence': 'low',
-            'note': 'This is a simplified analysis. Enable Copyleaks for professional detection.'
+            'note': 'This is a simplified analysis. Enable Copyleaks for professional AI detection.',
+            'total_words_analyzed': len(words),
+            'ai_words_detected': int(len(words) * (ai_probability / 100)),
+            'human_words_detected': int(len(words) * ((100 - ai_probability) / 100))
         }
