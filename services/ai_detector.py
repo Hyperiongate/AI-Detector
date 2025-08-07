@@ -7,12 +7,9 @@ import logging
 from typing import Dict, Any, Optional, List
 import requests
 from datetime import datetime
-import base64
-from io import BytesIO
 
 # Import analysis components
 from .text_ai_analyzer import TextAIAnalyzer
-from .image_ai_analyzer import ImageAIAnalyzer
 from .pattern_analyzer import PatternAnalyzer
 from .perplexity_analyzer import PerplexityAnalyzer
 from .copyleaks_detector import CopyleaksDetector
@@ -27,7 +24,6 @@ class AIDetector:
         """Initialize all analysis components"""
         # Initialize analyzers
         self.text_analyzer = TextAIAnalyzer()
-        self.image_analyzer = ImageAIAnalyzer()
         self.pattern_analyzer = PatternAnalyzer()
         self.perplexity_analyzer = PerplexityAnalyzer()
         self.copyleaks_detector = CopyleaksDetector()
@@ -90,6 +86,9 @@ class AIDetector:
                 # AI model fingerprinting
                 analysis_results['model_detection'] = self._detect_ai_model(text)
                 
+                # Section-by-section analysis
+                analysis_results['section_analysis'] = self._analyze_sections(text)
+                
                 # Recalculate with all data
                 ai_probability = self._calculate_pro_text_ai_probability(analysis_results)
                 analysis_results['ai_probability'] = ai_probability
@@ -114,98 +113,28 @@ class AIDetector:
                 'error': f'Text analysis failed: {str(e)}'
             }
     
-    def analyze_image(self, image_data: str, image_type: str = 'image/jpeg', is_pro: bool = False) -> Dict[str, Any]:
-        """
-        Comprehensive image analysis for AI detection
-        """
-        try:
-            # Start timing
-            start_time = datetime.now()
-            
-            # Basic analysis
-            analysis_results = {
-                'success': True,
-                'content_type': 'image',
-                'image_type': image_type,
-                'analysis_timestamp': datetime.utcnow().isoformat(),
-                'is_pro': is_pro
-            }
-            
-            # Image AI detection
-            image_results = self.image_analyzer.analyze(image_data, image_type)
-            analysis_results['image_analysis'] = image_results
-            
-            # Calculate AI probability
-            ai_probability = image_results.get('ai_probability', 50)
-            analysis_results['ai_probability'] = ai_probability
-            analysis_results['confidence_level'] = self._get_confidence_level(ai_probability)
-            
-            # Pro features
-            if is_pro:
-                # Advanced image forensics
-                analysis_results['forensics_analysis'] = self.image_analyzer.forensic_analysis(image_data)
-                
-                # AI model detection for images
-                analysis_results['model_detection'] = self.image_analyzer.detect_generation_model(image_data)
-                
-                # Artifact detection
-                analysis_results['artifact_analysis'] = self.image_analyzer.detect_ai_artifacts(image_data)
-                
-                # Recalculate with all data
-                ai_probability = self._calculate_pro_image_ai_probability(analysis_results)
-                analysis_results['ai_probability'] = ai_probability
-                analysis_results['confidence_level'] = self._get_confidence_level(ai_probability)
-                
-                # Add detailed breakdown
-                analysis_results['detection_breakdown'] = self._create_image_detection_breakdown(analysis_results)
-            
-            # Add summary
-            analysis_results['summary'] = self._create_image_summary(analysis_results)
-            
-            # Calculate processing time
-            processing_time = (datetime.now() - start_time).total_seconds()
-            analysis_results['processing_time'] = round(processing_time, 2)
-            
-            return analysis_results
-            
-        except Exception as e:
-            logger.error(f"Image analysis error: {str(e)}", exc_info=True)
-            return {
-                'success': False,
-                'error': f'Image analysis failed: {str(e)}'
-            }
-    
     def analyze_url(self, url: str, is_pro: bool = False) -> Dict[str, Any]:
         """
-        Analyze content from URL (text or image)
+        Analyze text content from URL
         """
         try:
-            # First, extract content from URL
+            # Extract content from URL
             content_data = self.text_analyzer.extract_from_url(url)
             
             if not content_data.get('success'):
                 return content_data
             
-            # Check if it's an image URL
-            if self._is_image_url(url) or content_data.get('content_type', '').startswith('image/'):
-                # Download and analyze image
-                image_data = self._download_image(url)
-                if image_data:
-                    return self.analyze_image(image_data['data'], image_data['type'], is_pro)
-                else:
-                    return {'success': False, 'error': 'Failed to download image'}
+            # Analyze text content
+            text = content_data.get('text', '')
+            if text:
+                result = self.analyze_text(text, is_pro)
+                # Add URL metadata
+                result['source_url'] = url
+                result['source_title'] = content_data.get('title')
+                result['source_domain'] = content_data.get('domain')
+                return result
             else:
-                # Analyze text content
-                text = content_data.get('text', '')
-                if text:
-                    result = self.analyze_text(text, is_pro)
-                    # Add URL metadata
-                    result['source_url'] = url
-                    result['source_title'] = content_data.get('title')
-                    result['source_domain'] = content_data.get('domain')
-                    return result
-                else:
-                    return {'success': False, 'error': 'No text content found at URL'}
+                return {'success': False, 'error': 'No text content found at URL'}
                     
         except Exception as e:
             logger.error(f"URL analysis error: {str(e)}", exc_info=True)
@@ -286,40 +215,6 @@ class AIDetector:
         
         return round(weighted_sum / total_weight, 1)
     
-    def _calculate_pro_image_ai_probability(self, analysis_results: Dict) -> float:
-        """Calculate AI probability for images with pro features"""
-        scores = []
-        weights = []
-        
-        # Basic image analysis (40%)
-        if analysis_results.get('image_analysis', {}).get('ai_probability') is not None:
-            scores.append(analysis_results['image_analysis']['ai_probability'])
-            weights.append(0.40)
-        
-        # Forensics analysis (30%)
-        if analysis_results.get('forensics_analysis', {}).get('ai_probability') is not None:
-            scores.append(analysis_results['forensics_analysis']['ai_probability'])
-            weights.append(0.30)
-        
-        # Model detection (20%)
-        if analysis_results.get('model_detection', {}).get('confidence') is not None:
-            scores.append(analysis_results['model_detection']['confidence'])
-            weights.append(0.20)
-        
-        # Artifact analysis (10%)
-        if analysis_results.get('artifact_analysis', {}).get('ai_score') is not None:
-            scores.append(analysis_results['artifact_analysis']['ai_score'])
-            weights.append(0.10)
-        
-        if not scores:
-            return 50.0
-        
-        # Weighted average
-        total_weight = sum(weights)
-        weighted_sum = sum(score * weight for score, weight in zip(scores, weights))
-        
-        return round(weighted_sum / total_weight, 1)
-    
     def _get_confidence_level(self, ai_probability: float) -> str:
         """Get confidence level description"""
         if ai_probability >= 90:
@@ -350,25 +245,6 @@ class AIDetector:
         else:
             summary = f"This text appears to be human-written with only {ai_prob}% AI probability. "
             summary += "Natural writing patterns dominate."
-        
-        return summary
-    
-    def _create_image_summary(self, analysis_results: Dict) -> str:
-        """Create a summary for image analysis"""
-        ai_prob = analysis_results.get('ai_probability', 50)
-        
-        if ai_prob >= 80:
-            summary = f"This image is very likely AI-generated with {ai_prob}% probability. "
-            summary += "Strong AI generation artifacts detected."
-        elif ai_prob >= 60:
-            summary = f"This image shows significant AI generation indicators with {ai_prob}% probability. "
-            summary += "Multiple AI characteristics present."
-        elif ai_prob >= 40:
-            summary = f"This image has some AI generation markers with {ai_prob}% probability. "
-            summary += "Mixed indicators suggest possible AI involvement."
-        else:
-            summary = f"This image appears to be authentic with only {ai_prob}% AI probability. "
-            summary += "Natural image characteristics dominate."
         
         return summary
     
@@ -426,48 +302,6 @@ class AIDetector:
         
         if analysis_results.get('copyleaks_analysis', {}).get('confidence') == 'high':
             breakdown['confidence_factors'].append('Professional AI detection confirms findings')
-        
-        return breakdown
-    
-    def _create_image_detection_breakdown(self, analysis_results: Dict) -> Dict[str, Any]:
-        """Create detailed breakdown for image detection"""
-        breakdown = {
-            'detection_methods': [],
-            'visual_indicators': [],
-            'technical_markers': []
-        }
-        
-        # Add methods and scores
-        if 'image_analysis' in analysis_results:
-            breakdown['detection_methods'].append({
-                'method': 'Visual AI Detection',
-                'score': analysis_results['image_analysis'].get('ai_probability', 0),
-                'weight': '40%'
-            })
-        
-        if 'forensics_analysis' in analysis_results:
-            breakdown['detection_methods'].append({
-                'method': 'Digital Forensics',
-                'score': analysis_results['forensics_analysis'].get('ai_probability', 0),
-                'weight': '30%'
-            })
-        
-        if 'model_detection' in analysis_results:
-            breakdown['detection_methods'].append({
-                'method': 'Model Detection',
-                'score': analysis_results['model_detection'].get('confidence', 0),
-                'weight': '20%'
-            })
-        
-        # Add visual indicators
-        if analysis_results.get('image_analysis', {}).get('artifact_analysis', {}).get('artifacts_found'):
-            for artifact in analysis_results['image_analysis']['artifact_analysis']['artifacts_found']:
-                breakdown['visual_indicators'].append(artifact)
-        
-        # Add technical markers
-        if analysis_results.get('forensics_analysis', {}).get('artifacts_detected'):
-            for marker in analysis_results['forensics_analysis']['artifacts_detected']:
-                breakdown['technical_markers'].append(marker)
         
         return breakdown
     
@@ -592,32 +426,56 @@ class AIDetector:
                 'model_signatures': []
             }
     
-    def _is_image_url(self, url: str) -> bool:
-        """Check if URL points to an image"""
-        image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.ico']
-        url_lower = url.lower()
-        return any(url_lower.endswith(ext) for ext in image_extensions)
-    
-    def _download_image(self, url: str) -> Optional[Dict[str, Any]]:
-        """Download image from URL and convert to base64"""
+    def _analyze_sections(self, text: str) -> List[Dict[str, Any]]:
+        """Analyze text section by section"""
         try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-            response = requests.get(url, headers=headers, timeout=10)
+            # Split text into paragraphs
+            paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
             
-            if response.status_code == 200:
-                image_data = base64.b64encode(response.content).decode('utf-8')
-                content_type = response.headers.get('content-type', 'image/jpeg')
-                
-                return {
-                    'data': image_data,
-                    'type': content_type
+            if not paragraphs:
+                # If no double newlines, try single newlines
+                paragraphs = [p.strip() for p in text.split('\n') if p.strip() and len(p.strip()) > 50]
+            
+            sections = []
+            for i, paragraph in enumerate(paragraphs[:10]):  # Limit to first 10 paragraphs
+                # Analyze each section
+                section_analysis = {
+                    'text': paragraph[:200] + '...' if len(paragraph) > 200 else paragraph,
+                    'ai_probability': self._quick_ai_check(paragraph),
+                    'word_count': len(paragraph.split())
                 }
+                sections.append(section_analysis)
+            
+            return sections
+            
         except Exception as e:
-            logger.error(f"Failed to download image: {e}")
+            logger.error(f"Section analysis error: {e}")
+            return []
+    
+    def _quick_ai_check(self, text: str) -> float:
+        """Quick AI probability check for a text section"""
+        ai_score = 50
+        text_lower = text.lower()
         
-        return None
+        # Check for AI indicators
+        ai_phrases = [
+            'furthermore', 'moreover', 'it is important to note',
+            'in conclusion', 'delve into', 'navigate', 'leverage'
+        ]
+        
+        for phrase in ai_phrases:
+            if phrase in text_lower:
+                ai_score += 10
+        
+        # Check sentence structure
+        sentences = self._split_sentences(text)
+        if sentences:
+            # Very uniform sentence lengths suggest AI
+            lengths = [len(s.split()) for s in sentences]
+            if len(set(lengths)) < len(lengths) / 2:
+                ai_score += 15
+        
+        return min(ai_score, 95)
     
     def _split_sentences(self, text: str) -> List[str]:
         """Split text into sentences"""
