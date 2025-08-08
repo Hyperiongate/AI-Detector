@@ -8,6 +8,8 @@ class TextAnalysisApp {
         this.API_ENDPOINT = '/api/analyze';
         this.progressInterval = null;
         this.analysisStartTime = null;
+        this.uploadedFile = null;
+        this.extractedText = '';
         
         this.init();
     }
@@ -32,6 +34,28 @@ class TextAnalysisApp {
             });
         });
 
+        // File upload drag and drop
+        const uploadArea = document.getElementById('fileUploadArea');
+        if (uploadArea) {
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('drag-over');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('drag-over');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('drag-over');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    this.handleFileSelection(files[0]);
+                }
+            });
+        }
+
         // Global functions
         window.analyzeContent = () => this.analyzeContent();
         window.unlockPremium = () => this.unlockPremium();
@@ -42,15 +66,184 @@ class TextAnalysisApp {
         window.hideHowItWorks = () => this.hideHowItWorks();
         window.updateCharCount = () => this.updateCharCount();
         window.clearText = () => this.clearText();
+        window.switchInputTab = (tab) => this.switchInputTab(tab);
+        window.handleFileUpload = (event) => this.handleFileUpload(event);
+        window.removeFile = () => this.removeFile();
     }
 
-    updateAnalyzeButton() {
-        const btn = document.getElementById('analyzeBtn');
+    switchInputTab(tab) {
+        // Hide all tab contents
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.style.display = 'none';
+        });
+        
+        // Remove active class from all tabs
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // Show selected tab content
+        document.getElementById(`${tab}-tab`).style.display = 'block';
+        
+        // Add active class to selected tab button
+        document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+        
+        // Update analyze button based on content availability
+        if (tab === 'file') {
+            const fileAnalyzeBtn = document.getElementById('fileAnalyzeBtn');
+            fileAnalyzeBtn.disabled = !this.extractedText;
+        }
+    }
+
+    handleFileUpload(event) {
+        const file = event.target.files[0];
+        if (file) {
+            this.handleFileSelection(file);
+        }
+    }
+
+    handleFileSelection(file) {
+        // Validate file type
+        const validTypes = ['.txt', '.doc', '.docx', '.pdf'];
+        const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+        
+        if (!validTypes.includes(fileExtension)) {
+            this.showError('Please upload a valid file type (TXT, DOC, DOCX, or PDF)');
+            return;
+        }
+
+        // Validate file size (5MB max)
+        if (file.size > 5 * 1024 * 1024) {
+            this.showError('File size must be less than 5MB');
+            return;
+        }
+
+        this.uploadedFile = file;
+        
+        // Show file preview
+        document.getElementById('filePreview').style.display = 'block';
+        document.querySelector('.upload-label').style.display = 'none';
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('fileSize').textContent = this.formatFileSize(file.size);
+        
+        // Extract text based on file type
+        if (fileExtension === '.txt') {
+            this.extractTextFromTxtFile(file);
+        } else {
+            // For DOC, DOCX, PDF - would need server-side processing
+            this.extractTextFromDocument(file);
+        }
+    }
+
+    extractTextFromTxtFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            this.extractedText = e.target.result;
+            this.showExtractedTextPreview();
+        };
+        reader.onerror = () => {
+            this.showError('Failed to read file');
+        };
+        reader.readAsText(file);
+    }
+
+    extractTextFromDocument(file) {
+        // Show loading state
+        document.getElementById('extractedTextPreview').style.display = 'block';
+        document.getElementById('textPreview').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Extracting text...';
+        document.getElementById('fileCharCount').textContent = '';
+        
+        // Create FormData for file upload
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // Call API to extract text
+        fetch('/api/extract-text', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to extract text');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success && data.text) {
+                this.extractedText = data.text;
+                this.showExtractedTextPreview();
+            } else {
+                throw new Error(data.error || 'Failed to extract text');
+            }
+        })
+        .catch(error => {
+            console.error('Text extraction error:', error);
+            this.showError('Failed to extract text from document. Please try a TXT file.');
+            document.getElementById('extractedTextPreview').style.display = 'none';
+        });
+    }
+
+    showExtractedTextPreview() {
+        const preview = document.getElementById('extractedTextPreview');
+        const textPreview = document.getElementById('textPreview');
+        const charCount = document.getElementById('fileCharCount');
+        
+        preview.style.display = 'block';
+        
+        // Show first 500 characters as preview
+        const previewText = this.extractedText.substring(0, 500);
+        textPreview.textContent = previewText + (this.extractedText.length > 500 ? '...' : '');
+        
+        // Update character count
+        charCount.textContent = `${this.extractedText.length} characters`;
+        
+        // Enable analyze button
+        document.getElementById('fileAnalyzeBtn').disabled = false;
+        
+        // Update analyze button text
+        const btn = document.getElementById('fileAnalyzeBtn');
         if (this.analysisType === 'plagiarism') {
             btn.innerHTML = '<i class="fas fa-search"></i> <span>Check for Plagiarism</span>';
         } else {
             btn.innerHTML = '<i class="fas fa-search"></i> <span>Check for AI</span>';
         }
+    }
+
+    removeFile() {
+        this.uploadedFile = null;
+        this.extractedText = '';
+        
+        // Reset UI
+        document.getElementById('filePreview').style.display = 'none';
+        document.querySelector('.upload-label').style.display = 'flex';
+        document.getElementById('fileInput').value = '';
+        document.getElementById('fileAnalyzeBtn').disabled = true;
+        
+        // Clear file info
+        document.getElementById('fileName').textContent = '';
+        document.getElementById('fileSize').textContent = '';
+        document.getElementById('textPreview').textContent = '';
+        document.getElementById('fileCharCount').textContent = '';
+    }
+
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    updateAnalyzeButton() {
+        const textBtn = document.getElementById('analyzeBtn');
+        const fileBtn = document.getElementById('fileAnalyzeBtn');
+        
+        const buttonText = this.analysisType === 'plagiarism' 
+            ? '<i class="fas fa-search"></i> <span>Check for Plagiarism</span>'
+            : '<i class="fas fa-search"></i> <span>Check for AI</span>';
+        
+        textBtn.innerHTML = buttonText;
+        fileBtn.innerHTML = buttonText;
     }
 
     updateCharCount() {
@@ -74,8 +267,16 @@ class TextAnalysisApp {
     async analyzeContent() {
         this.analysisStartTime = Date.now();
         
-        // Get text input
-        const text = document.getElementById('textInput').value.trim();
+        // Get text based on active tab
+        let text = '';
+        const activeTab = document.querySelector('.tab-btn.active').dataset.tab;
+        
+        if (activeTab === 'text') {
+            text = document.getElementById('textInput').value.trim();
+        } else if (activeTab === 'file') {
+            text = this.extractedText;
+        }
+        
         if (!text || text.length < 50) {
             this.showError('Please enter at least 50 characters of text');
             return;
@@ -99,10 +300,13 @@ class TextAnalysisApp {
         // Show progress
         this.showProgress();
         
-        // Disable analyze button
-        const analyzeBtn = document.getElementById('analyzeBtn');
-        analyzeBtn.disabled = true;
-        analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+        // Disable analyze buttons
+        const textAnalyzeBtn = document.getElementById('analyzeBtn');
+        const fileAnalyzeBtn = document.getElementById('fileAnalyzeBtn');
+        textAnalyzeBtn.disabled = true;
+        fileAnalyzeBtn.disabled = true;
+        textAnalyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+        fileAnalyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
 
         try {
             // Call API
@@ -136,8 +340,9 @@ class TextAnalysisApp {
             this.showError(error.message || 'An error occurred during analysis');
             this.hideProgress();
         } finally {
-            // Re-enable button
-            analyzeBtn.disabled = false;
+            // Re-enable buttons
+            textAnalyzeBtn.disabled = false;
+            fileAnalyzeBtn.disabled = activeTab === 'file' && !this.extractedText;
             this.updateAnalyzeButton();
         }
     }
@@ -1045,6 +1250,11 @@ additionalStyles.innerHTML = `
     @keyframes fadeIn {
         from { opacity: 0; }
         to { opacity: 1; }
+    }
+    
+    .drag-over {
+        border-color: var(--primary) !important;
+        background: rgba(124, 58, 237, 0.1) !important;
     }
     
     .metric-grid {
